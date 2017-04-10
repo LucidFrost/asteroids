@@ -11,6 +11,14 @@ void init_menu() {
     menu.message_position = make_vector2(HALF_WINDOW_WIDTH - half_draw_width, HALF_WINDOW_HEIGHT);
 }
 
+void start_menu() {
+
+}
+
+void stop_menu() {
+    
+}
+
 void update_menu() {
     if (input.escape.down) {
         is_running = false;

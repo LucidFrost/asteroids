@@ -27,8 +27,8 @@ const int HALF_WINDOW_HEIGHT = WINDOW_HEIGHT / 2;
 const float WORLD_HEIGHT = 15.0f;
 const float WORLD_WIDTH  = WORLD_HEIGHT * ((float) WINDOW_WIDTH / (float) WINDOW_HEIGHT);
 
-const float WORLD_HALF_WIDTH  = WORLD_WIDTH  / 2.0f;
-const float WORLD_HALF_HEIGHT = WORLD_HEIGHT / 2.0f;
+const float HALF_WORLD_WIDTH  = WORLD_WIDTH  / 2.0f;
+const float HALF_WORLD_HEIGHT = WORLD_HEIGHT / 2.0f;
 
 bool is_running  = true;
 float delta_time = 0.0f;
@@ -98,6 +98,7 @@ void* read_entire_file(char* file_name) {
 }
 
 #include "math.cpp"
+#include "random.cpp"
 #include "draw.cpp"
 
 struct Key {
@@ -256,6 +257,9 @@ int main() {
 
     init_draw(window);
 
+    init_menu();
+    init_game();
+
     Sprite background_sprite = load_sprite("data/background.png");
 
     LARGE_INTEGER frequency;
@@ -284,8 +288,8 @@ int main() {
 
         draw_begin();
 
-        float background_x = -WORLD_HALF_WIDTH;
-        float background_y = -WORLD_HALF_HEIGHT;
+        float background_x = -HALF_WORLD_WIDTH;
+        float background_y = -HALF_WORLD_HEIGHT;
 
         float background_width  = get_sprite_draw_width(&background_sprite);
         float background_height = get_sprite_draw_height(&background_sprite);
@@ -307,11 +311,11 @@ int main() {
         if (game_mode_switched) {
             switch (game_mode) {
                 case GM_MENU: {
-                    init_menu();
+                    start_menu();
                     break;
                 }
                 case GM_GAME: {
-                    init_game();
+                    start_game();
                     break;
                 }
             }

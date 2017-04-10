@@ -301,7 +301,7 @@ void init_draw(HWND window) {
     
     check_gl_error("init_draw");
 
-    world_projection = make_ortho(-WORLD_HALF_WIDTH, WORLD_HALF_WIDTH, WORLD_HALF_HEIGHT, -WORLD_HALF_HEIGHT);
+    world_projection = make_ortho(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT, -HALF_WORLD_HEIGHT);
     gui_projection   = make_ortho(0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f);
 }
 
