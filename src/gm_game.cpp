@@ -22,19 +22,21 @@ struct Laser {
 };
 
 enum Meteor_Size {
-    MS_TINY
+    MS_TINY,
     MS_SMALL,
     MS_MEDIUM,
     MS_BIG,
+    MS_LARGE,
     MS_COUNT
 };
 
-const float MS_RADII[] = { 0.1f, 0.3f, 0.5f, 1.2f };
+const float MS_RADII[] = { 0.1f, 0.3f, 0.5f, 0.9f, 1.4f };
 
 struct Meteor {
     bool is_active;
 
     Meteor_Size size;
+    Sprite*     sprite;
 
     Vector2 position;
     float   orientation;
@@ -51,6 +53,7 @@ struct Game {
     Sprite meteor_sprites_small[2];
     Sprite meteor_sprites_medium[2];
     Sprite meteor_sprites_big[4];
+    Sprite meteor_sprites_large[4];
 
     Player player;
 
@@ -66,7 +69,20 @@ void init_game() {
     game.ship_sprite  = load_sprite("data/player_ship.png");
     game.laser_sprite = load_sprite("data/player_laser.png");
 
-    
+    game.meteor_sprites_tiny[0]     = load_sprite("data/meteor_tiny1.png");
+    game.meteor_sprites_tiny[1]     = load_sprite("data/meteor_tiny2.png");
+    game.meteor_sprites_small[0]    = load_sprite("data/meteor_small1.png");
+    game.meteor_sprites_small[1]    = load_sprite("data/meteor_small2.png");
+    game.meteor_sprites_medium[0]   = load_sprite("data/meteor_medium1.png");
+    game.meteor_sprites_medium[1]   = load_sprite("data/meteor_medium2.png");
+    game.meteor_sprites_big[0]      = load_sprite("data/meteor_big1.png");
+    game.meteor_sprites_big[1]      = load_sprite("data/meteor_big2.png");
+    game.meteor_sprites_big[2]      = load_sprite("data/meteor_big3.png");
+    game.meteor_sprites_big[3]      = load_sprite("data/meteor_big4.png");
+    game.meteor_sprites_large[0]    = load_sprite("data/meteor_large1.png");
+    game.meteor_sprites_large[1]    = load_sprite("data/meteor_large2.png");
+    game.meteor_sprites_large[2]    = load_sprite("data/meteor_large3.png");
+    game.meteor_sprites_large[3]    = load_sprite("data/meteor_large4.png");
 }
 
 void start_game() {
@@ -133,6 +149,38 @@ void update_game() {
             meteor->is_active = true;
 
             meteor->size = (Meteor_Size) get_random_between(0, MS_COUNT - 1);
+            switch (meteor->size) {
+                case MS_TINY: {
+                    int index = get_random_between(0, count_of(game.meteor_sprites_tiny) - 1);
+                    meteor->sprite = &game.meteor_sprites_tiny[index];
+
+                    break;
+                }
+                case MS_SMALL: {
+                    int index = get_random_between(0, count_of(game.meteor_sprites_small) - 1);
+                    meteor->sprite = &game.meteor_sprites_small[index];
+
+                    break;
+                }
+                case MS_MEDIUM: {
+                    int index = get_random_between(0, count_of(game.meteor_sprites_medium) - 1);
+                    meteor->sprite = &game.meteor_sprites_medium[index];
+
+                    break;
+                }
+                case MS_BIG: {
+                    int index = get_random_between(0, count_of(game.meteor_sprites_big) - 1);
+                    meteor->sprite = &game.meteor_sprites_big[index];
+
+                    break;
+                }
+                case MS_LARGE: {
+                    int index = get_random_between(0, count_of(game.meteor_sprites_large) - 1);
+                    meteor->sprite = &game.meteor_sprites_large[index];
+
+                    break;
+                }
+            }
             
             meteor->position.x = get_random_between(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH);
             meteor->position.y = get_random_between(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT);
@@ -148,6 +196,7 @@ void update_game() {
         Meteor* meteor = &game.meteors[i];
         if (!meteor->is_active) continue;
 
+        draw_sprite(meteor->sprite, meteor->position, 0.0f);
         draw_circle(meteor->position, MS_RADII[meteor->size], GREEN);
     }
 
