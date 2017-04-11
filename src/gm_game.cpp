@@ -1,10 +1,9 @@
 const float PLAYER_SPEED    = 10.0f;
-const float PLAYER_TURN     = 350.0f;
 const float PLAYER_RADIUS   = 0.5f;
 
 const float LASER_SPEED     = 15.0f;
-const float LASER_LIFETIME  = 1.5f;
 const float LASER_RADIUS    = 0.1f;
+const float LASER_LIFETIME  = 1.5f;
 
 struct Player {
     Vector2 position;
@@ -30,7 +29,7 @@ enum Meteor_Size {
     MS_COUNT
 };
 
-const float MS_RADII[] = { 0.1f, 0.3f, 0.5f, 0.9f, 1.4f };
+const float MS_RADII[] = { 0.1f, 0.2f, 0.3f, 0.6f, 1.1f };
 
 struct Meteor {
     bool is_active;
@@ -48,7 +47,6 @@ struct Meteor {
 struct Game {
     Sprite ship_sprite;
     Sprite laser_sprite;
-
     Sprite meteor_sprites_tiny[2];
     Sprite meteor_sprites_small[2];
     Sprite meteor_sprites_medium[2];
@@ -66,26 +64,27 @@ struct Game {
 Game game;
 
 void init_game() {
-    game.ship_sprite  = load_sprite("data/player_ship.png");
-    game.laser_sprite = load_sprite("data/player_laser.png");
-
-    game.meteor_sprites_tiny[0]     = load_sprite("data/meteor_tiny1.png");
-    game.meteor_sprites_tiny[1]     = load_sprite("data/meteor_tiny2.png");
-    game.meteor_sprites_small[0]    = load_sprite("data/meteor_small1.png");
-    game.meteor_sprites_small[1]    = load_sprite("data/meteor_small2.png");
-    game.meteor_sprites_medium[0]   = load_sprite("data/meteor_medium1.png");
-    game.meteor_sprites_medium[1]   = load_sprite("data/meteor_medium2.png");
-    game.meteor_sprites_big[0]      = load_sprite("data/meteor_big1.png");
-    game.meteor_sprites_big[1]      = load_sprite("data/meteor_big2.png");
-    game.meteor_sprites_big[2]      = load_sprite("data/meteor_big3.png");
-    game.meteor_sprites_big[3]      = load_sprite("data/meteor_big4.png");
-    game.meteor_sprites_large[0]    = load_sprite("data/meteor_large1.png");
-    game.meteor_sprites_large[1]    = load_sprite("data/meteor_large2.png");
-    game.meteor_sprites_large[2]    = load_sprite("data/meteor_large3.png");
-    game.meteor_sprites_large[3]    = load_sprite("data/meteor_large4.png");
+    game.ship_sprite                = load_sprite("data/sprites/player_ship.png");
+    game.laser_sprite               = load_sprite("data/sprites/player_laser.png");
+    game.meteor_sprites_tiny[0]     = load_sprite("data/sprites/meteor_tiny1.png");
+    game.meteor_sprites_tiny[1]     = load_sprite("data/sprites/meteor_tiny2.png");
+    game.meteor_sprites_small[0]    = load_sprite("data/sprites/meteor_small1.png");
+    game.meteor_sprites_small[1]    = load_sprite("data/sprites/meteor_small2.png");
+    game.meteor_sprites_medium[0]   = load_sprite("data/sprites/meteor_medium1.png");
+    game.meteor_sprites_medium[1]   = load_sprite("data/sprites/meteor_medium2.png");
+    game.meteor_sprites_big[0]      = load_sprite("data/sprites/meteor_big1.png");
+    game.meteor_sprites_big[1]      = load_sprite("data/sprites/meteor_big2.png");
+    game.meteor_sprites_big[2]      = load_sprite("data/sprites/meteor_big3.png");
+    game.meteor_sprites_big[3]      = load_sprite("data/sprites/meteor_big4.png");
+    game.meteor_sprites_large[0]    = load_sprite("data/sprites/meteor_large1.png");
+    game.meteor_sprites_large[1]    = load_sprite("data/sprites/meteor_large2.png");
+    game.meteor_sprites_large[2]    = load_sprite("data/sprites/meteor_large3.png");
+    game.meteor_sprites_large[3]    = load_sprite("data/sprites/meteor_large4.png");
 }
 
 void start_game() {
+    seed_random(0);
+
     game.player.position    = make_vector2();
     game.player.orientation = 0.0f;
 
@@ -184,6 +183,8 @@ void update_game() {
             
             meteor->position.x = get_random_between(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH);
             meteor->position.y = get_random_between(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT);
+
+            meteor->orientation = get_random_between(0.0f, 360.0f);
         }
         else {
             print("Failed to spawn meteor, no more meteor slots are available\n");
@@ -220,6 +221,13 @@ void update_game() {
     Vector2 new_direction  = normalize(world_position - game.player.position);
 
     game.player.orientation = to_degrees(atan2f(new_direction.y, new_direction.x)) - 90.0f;
+
+    for (int i = 0; i < count_of(game.meteors); i++) {
+        Meteor* meteor = &game.meteors[i];
+        if ()
+    }
+
+    if (check_collision(game.player.position, PLAYER_RADIUS, ))
 
     draw_sprite(&game.ship_sprite, game.player.position, game.player.orientation);
     draw_circle(game.player.position, PLAYER_RADIUS, GREEN);

@@ -260,7 +260,7 @@ int main() {
     init_menu();
     init_game();
 
-    Sprite background_sprite = load_sprite("data/background.png");
+    Sprite background_sprite = load_sprite("data/sprites/background.png");
 
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
