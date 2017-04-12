@@ -6,8 +6,21 @@ if %ERRORLEVEL% neq 0 (
     call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
 )
 
+set exe_name=asteroids.exe
+
 if not exist build mkdir build
 pushd build
-    echo Building 'asteroids.exe'...
-    cl /nologo /Zi ../src/main.cpp /link /out:"asteroids.exe"
+    echo Starting building...
+    ..\tools\ctime -begin asteroids.ctm
+
+    cl /nologo /Zi /Fe%exe_name% ../src/main.cpp
+    set build_result=%ERRORLEVEL%
+
+    if %build_result% equ 0 (
+        echo out: %exe_name%
+    ) else (
+        echo Build failed
+    )
+
+    ..\tools\ctime -end asteroids.ctm %build_result%
 popd

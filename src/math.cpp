@@ -176,7 +176,7 @@ Matrix4 make_ortho(float left, float right, float top, float bottom, float far_p
     return matrix;
 }
 
-Matrix4 make_transform(Vector2 position, float orientation, float scale = 1.0f) {
+Matrix4 make_transform(Vector2 position, float orientation = 0.0f, float scale = 1.0f) {
     Matrix4 translation = make_identity();
     Matrix4 rotation    = make_identity();
     Matrix4 scalar      = make_identity();

@@ -15,17 +15,13 @@ void start_menu() {
 
 }
 
-void stop_menu() {
-    
-}
-
 void update_menu() {
     if (input.escape.down) {
         is_running = false;
     }
     
     if (input.any_key.down) {
-        switch_game_mode(GM_GAME);
+        switch_game_mode(GM_ASTEROIDS);
     }
 
     draw_text(menu.message_text, menu.message_position);

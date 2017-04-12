@@ -141,7 +141,7 @@ void set_key_down(Key* key) {
 enum Game_Mode {
     GM_NONE,
     GM_MENU,
-    GM_GAME
+    GM_ASTEROIDS
 };
 
 Game_Mode game_mode = GM_NONE;
@@ -153,12 +153,29 @@ void switch_game_mode(Game_Mode new_game_mode) {
 }
 
 #include "gm_menu.cpp"
-#include "gm_game.cpp"
+#include "gm_asteroids.cpp"
+
+RECT old_clip_rect;
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
     LRESULT result = 0;
 
     switch (message) {
+        case WM_ACTIVATE: {
+            if (LOWORD(w_param) != WA_INACTIVE) {
+                GetClipCursor(&old_clip_rect);
+
+                RECT client_rect;
+                GetWindowRect(window, &client_rect);
+
+                ClipCursor(&client_rect);
+            }
+            else {
+                ClipCursor(&old_clip_rect);
+            }
+
+            break;
+        }
         case WM_CLOSE: {
             is_running = false;
             break;
@@ -170,13 +187,10 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
             break;
         }
         case WM_LBUTTONUP: {
-            set_key_up(&input.any_key);
             set_key_up(&input.left_mb);
-
             break;
         }
         case WM_LBUTTONDOWN: {
-            set_key_down(&input.any_key);
             set_key_down(&input.left_mb);
             break;
         }
@@ -258,7 +272,7 @@ int main() {
     init_draw(window);
 
     init_menu();
-    init_game();
+    init_asteroids();
 
     Sprite background_sprite = load_sprite("data/sprites/background.png");
 
@@ -267,6 +281,8 @@ int main() {
 
     LARGE_INTEGER last_time;
     QueryPerformanceCounter(&last_time);
+
+    seed_random(last_time.QuadPart);
 
     while (is_running) {
         LARGE_INTEGER start_time;
@@ -314,8 +330,8 @@ int main() {
                     start_menu();
                     break;
                 }
-                case GM_GAME: {
-                    start_game();
+                case GM_ASTEROIDS: {
+                    start_asteroids();
                     break;
                 }
             }
@@ -328,8 +344,8 @@ int main() {
                 update_menu();
                 break;
             }
-            case GM_GAME: {
-                update_game();
+            case GM_ASTEROIDS: {
+                update_asteroids();
                 break;
             }
             default: {

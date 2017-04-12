@@ -425,7 +425,7 @@ float get_sprite_draw_height(Sprite* sprite, float scale = 1.0f) {
     return sprite->height * PIXELS_TO_WORLD * scale;
 }
 
-void draw_sprite(Sprite* sprite, Vector2 position, float rotation, float scale = 1.0f) {
+void draw_sprite(Sprite* sprite, Matrix4 transform) {
     glUseProgram(sprite_program);
 
     GLint projection_location = glGetUniformLocation(sprite_program, "projection");
@@ -441,7 +441,6 @@ void draw_sprite(Sprite* sprite, Vector2 position, float rotation, float scale =
         print("Sprite program uniform 'transform' was not found\n");
     }
     else {
-        Matrix4 transform = make_transform(position, rotation, scale);
         glUniformMatrix4fv(transform_location, 1, GL_FALSE, &transform._11);
     }
 
@@ -449,8 +448,8 @@ void draw_sprite(Sprite* sprite, Vector2 position, float rotation, float scale =
 
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
 
-    float width  = get_sprite_draw_width(sprite, scale);
-    float height = get_sprite_draw_height(sprite, scale);
+    float width  = get_sprite_draw_width(sprite);
+    float height = get_sprite_draw_height(sprite);
 
     float x = -width  / 2.0f;
     float y = -height / 2.0f;
@@ -482,6 +481,10 @@ void draw_sprite(Sprite* sprite, Vector2 position, float rotation, float scale =
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     check_gl_error("draw_sprite");
+}
+
+void draw_sprite(Sprite* sprite, Vector2 position, float orientation = 0.0f, float scale = 1.0f) {
+    draw_sprite(sprite, make_transform(position, orientation, scale));
 }
 
 float get_text_draw_width(char* text) {
