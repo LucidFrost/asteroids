@@ -21,6 +21,8 @@ const float METEOR_SPEED_SMALL      = 5.0f;
 const float METEOR_SPEED_MEDIUM     = 3.0f;
 const float METEOR_SPEED_LARGE      = 1.0f;
 
+const float PARTICLE_FPS            = 1.0f / 30.0f;
+
 struct Player {
     Vector2 position;
     float   orientation;
@@ -201,17 +203,17 @@ void begin_level(int meteors) {
         Vector2 position = make_vector2();
 
         if (get_random_between(0, 1)) {
-            position.x = get_random_between(HALF_WORLD_WIDTH - (HALF_WORLD_WIDTH / 2.0f), HALF_WORLD_WIDTH);
+            position.x = get_random_between(HALF_VIEWPORT_WIDTH - QUARTER_VIEWPORT_WIDTH, HALF_VIEWPORT_WIDTH);
         }
         else {
-            position.x = get_random_between(-HALF_WORLD_WIDTH, -HALF_WORLD_WIDTH + (HALF_WORLD_WIDTH / 2.0f));
+            position.x = get_random_between(-HALF_VIEWPORT_WIDTH, -HALF_VIEWPORT_WIDTH + QUARTER_VIEWPORT_WIDTH);
         }
 
         if (get_random_between(0, 1)) {
-            position.y = get_random_between(HALF_WORLD_HEIGHT - (HALF_WORLD_HEIGHT / 2.0f), HALF_WORLD_HEIGHT);
+            position.y = get_random_between(HALF_VIEWPORT_HEIGHT - QUARTER_VIEWPORT_HEIGHT, HALF_VIEWPORT_HEIGHT);
         }
         else {
-            position.y = get_random_between(-HALF_WORLD_HEIGHT, -HALF_WORLD_HEIGHT + (HALF_WORLD_HEIGHT / 2.0f));
+            position.y = get_random_between(-HALF_VIEWPORT_HEIGHT, -HALF_VIEWPORT_HEIGHT + QUARTER_VIEWPORT_HEIGHT);
         }
 
         spawn_meteor(MS_LARGE, position);
@@ -251,20 +253,20 @@ bool check_collision(Vector2 position_a, float radius_a, Vector2 position_b, flo
 }
 
 void wrap_position(Vector2* position) {
-    if (position->x < -HALF_WORLD_WIDTH) {
-        position->x = HALF_WORLD_WIDTH;
+    if (position->x < -HALF_VIEWPORT_WIDTH) {
+        position->x = HALF_VIEWPORT_WIDTH;
     }
 
-    if (position->x > HALF_WORLD_WIDTH) {
-        position->x = -HALF_WORLD_WIDTH;
+    if (position->x > HALF_VIEWPORT_WIDTH) {
+        position->x = -HALF_VIEWPORT_WIDTH;
     }
 
-    if (position->y < -HALF_WORLD_HEIGHT) {
-        position->y = HALF_WORLD_HEIGHT;
+    if (position->y < -HALF_VIEWPORT_HEIGHT) {
+        position->y = HALF_VIEWPORT_HEIGHT;
     }
 
-    if (position->y > HALF_WORLD_HEIGHT) {
-        position->y = -HALF_WORLD_HEIGHT;
+    if (position->y > HALF_VIEWPORT_HEIGHT) {
+        position->y = -HALF_VIEWPORT_HEIGHT;
     }
 }
 
@@ -314,8 +316,8 @@ void update_asteroids() {
 
     wrap_position(&asteroids.player.position);
 
-    float screen_x = (2.0f * input.mouse_x) / WINDOW_WIDTH - 1.0f;
-    float screen_y = 1.0f - (2.0f * input.mouse_y) / WINDOW_HEIGHT;
+    float screen_x = (2.0f * input.mouse_x) / SCREEN_WIDTH - 1.0f;
+    float screen_y = 1.0f - (2.0f * input.mouse_y) / SCREEN_HEIGHT;
 
     Vector2 mouse_world_position = make_inverse(world_projection) * make_vector2(screen_x, screen_y);
     
@@ -474,7 +476,7 @@ void update_asteroids() {
                         particle->is_active = true;
                         
                         particle->sprite_index = get_random_between((int) count_of(asteroids.particle_sprites) - 3, (int) count_of(asteroids.particle_sprites) - 1);
-                        particle->sprite_timer = 1.0f / 15.0f;
+                        particle->sprite_timer = PARTICLE_FPS;
 
                         float offset_x = get_random_between(-emitter->radius, emitter->radius);
                         float offset_y = get_random_between(-emitter->radius, emitter->radius);
@@ -502,7 +504,7 @@ void update_asteroids() {
                     continue;
                 }
 
-                particle->sprite_timer = 1.0f / 30.0f;
+                particle->sprite_timer = PARTICLE_FPS;
                 particle->sprite_index--;
             }
 

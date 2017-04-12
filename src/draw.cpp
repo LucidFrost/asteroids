@@ -11,7 +11,16 @@
 
 #pragma comment(lib, "opengl32.lib")
 
-const float PIXELS_TO_WORLD = 1.0f / 100.0f;
+const float VIEWPORT_HEIGHT = 15.0f;
+const float VIEWPORT_WIDTH  = VIEWPORT_HEIGHT * ((float) SCREEN_WIDTH / (float) SCREEN_HEIGHT);
+
+const float HALF_VIEWPORT_WIDTH  = VIEWPORT_WIDTH  / 2.0f;
+const float HALF_VIEWPORT_HEIGHT = VIEWPORT_HEIGHT / 2.0f;
+
+const float QUARTER_VIEWPORT_WIDTH  = HALF_VIEWPORT_WIDTH  / 2.0f;
+const float QUARTER_VIEWPORT_HEIGHT = HALF_VIEWPORT_HEIGHT / 2.0f;
+
+const float SCREEN_TO_VIEWPORT = 1.0f / 100.0f;
 
 struct Color {
     float r;
@@ -159,7 +168,7 @@ GLuint make_program(char* vertex_source, char* fragment_source) {
     return program;
 }
 
-void init_draw(HWND window) {
+void init_draw() {
     dc = GetDC(window);
 
     PIXELFORMATDESCRIPTOR pixel_format_description = {};
@@ -301,8 +310,8 @@ void init_draw(HWND window) {
     
     check_gl_error("init_draw");
 
-    world_projection = make_ortho(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT, -HALF_WORLD_HEIGHT);
-    gui_projection   = make_ortho(0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f);
+    world_projection = make_ortho(-HALF_VIEWPORT_WIDTH, HALF_VIEWPORT_WIDTH, HALF_VIEWPORT_HEIGHT, -HALF_VIEWPORT_HEIGHT);
+    gui_projection   = make_ortho(0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f);
 }
 
 struct Sprite {
@@ -418,11 +427,11 @@ void draw_circle(Vector2 position, float radius, Color color) {
 }
 
 float get_sprite_draw_width(Sprite* sprite, float scale = 1.0f) {
-    return sprite->width * PIXELS_TO_WORLD * scale;
+    return sprite->width * SCREEN_TO_VIEWPORT * scale;
 }
 
 float get_sprite_draw_height(Sprite* sprite, float scale = 1.0f) {
-    return sprite->height * PIXELS_TO_WORLD * scale;
+    return sprite->height * SCREEN_TO_VIEWPORT * scale;
 }
 
 void draw_sprite(Sprite* sprite, Matrix4 transform) {

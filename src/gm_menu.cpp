@@ -8,7 +8,7 @@ void init_menu() {
     menu.message_text = "Press any key to play";
 
     float half_draw_width = get_text_draw_width(menu.message_text) / 2.0f;
-    menu.message_position = make_vector2(HALF_WINDOW_WIDTH - half_draw_width, HALF_WINDOW_HEIGHT);
+    menu.message_position = make_vector2(HALF_SCREEN_WIDTH - half_draw_width, HALF_SCREEN_HEIGHT);
 }
 
 void start_menu() {
