@@ -4,21 +4,51 @@
 #pragma comment(lib, "gdi32.lib")
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define count_of(array) (sizeof(array) / sizeof(array[0]))
 
-void* operator new(size_t count) {
-    return malloc(count);
+void* operator new(size_t count)            { return malloc(count); }
+void* operator new(size_t count, void* ptr) { return ptr; }
+void  operator delete(void* ptr)            { free(ptr); }
+
+// @todo: temporary storage
+char* format_string_args(char* string, va_list args) {
+    static char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), string, args);
+
+    return buffer;
 }
 
-void* operator new(size_t count, void* ptr) {
-    return ptr;
+char* format_string(char* string, ...) {
+    va_list args;
+    va_start(args, string);
+
+    string = format_string_args(string, args);
+    va_end(args);
+
+    return string;
 }
 
-void operator delete(void* ptr) {
-    free(ptr);
+void* read_entire_file(char* file_name) {
+    void* result = NULL;
+
+    FILE* file = fopen(file_name, "rb");
+    if (file) {
+        fseek(file, 0, SEEK_END);
+
+        int file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        result = malloc(file_size);
+        fread(result, 1, file_size, file);
+
+        fclose(file);
+    }
+
+    return result;
 }
 
 const int WINDOW_WIDTH  = 1600;
@@ -61,7 +91,13 @@ struct Input {
 Input input;
 
 struct Time {
-    float frame_delta;
+    uint64_t ticks_frequency = 0;
+    uint64_t ticks_start     = 0;
+    uint64_t ticks_last      = 0;
+    uint64_t ticks_current   = 0;
+    
+    float now   = 0.0f;
+    float delta = 0.0f;
 };
 
 Time time;
@@ -196,11 +232,29 @@ int main() {
     HGLRC rendering_context = wglCreateContext(device_context);
     wglMakeCurrent(device_context, rendering_context);
 
+    LARGE_INTEGER ticks_frequency;
+    QueryPerformanceFrequency(&ticks_frequency);
+
+    LARGE_INTEGER ticks_start;
+    QueryPerformanceCounter(&ticks_start);
+
+    time.ticks_frequency = ticks_frequency.QuadPart;
+    time.ticks_start     = ticks_start.QuadPart;
+    time.ticks_last      = ticks_start.QuadPart;
+    time.ticks_current   = ticks_start.QuadPart;
+
     init_draw();
     init_asteroids();
 
     while (1) {
-        time.frame_delta = 1.0f / 60.0f;
+        LARGE_INTEGER ticks;
+        QueryPerformanceCounter(&ticks);
+
+        time.ticks_last    = time.ticks_current;
+        time.ticks_current = ticks.QuadPart;
+
+        time.now   = (float) (time.ticks_current - time.ticks_start) / (float) time.ticks_frequency;
+        time.delta = (float) (time.ticks_current - time.ticks_last)  / (float) time.ticks_frequency;
 
         on_key_update(&input.key_escape);
 
