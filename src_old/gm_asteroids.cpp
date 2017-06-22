@@ -1,4 +1,4 @@
-const bool DRAW_COLLIDERS           = false;
+const bool  DRAW_COLLIDERS          = false;
 const float NEW_LEVEL_WAIT_TIME     = 2.5f;
 
 const float PLAYER_MOVE_SPEED       = 10.0f;
@@ -49,6 +49,9 @@ enum Meteor_Size {
 struct Meteor {
     bool is_active;
     bool is_destroyed;
+
+    bool  is_showing_score;
+    float score_alpha;
 
     Meteor_Size size;
     
@@ -386,8 +389,9 @@ void update_asteroids() {
     for (int i = 0; i < count_of(asteroids.meteors); i++) {
         Meteor* meteor = &asteroids.meteors[i];
         
-        if (!meteor->is_active)    continue;
-        if (!meteor->is_destroyed) continue;
+        if (!meteor->is_active)       continue;
+        if (!meteor->is_destroyed)    continue;
+        if (meteor->is_showing_score) continue;
 
         asteroids.player.score += meteor->score;
         
@@ -398,39 +402,55 @@ void update_asteroids() {
             }
         }
 
-        meteor->is_active = false;
+        meteor->is_showing_score = true;
+        meteor->score_alpha      = 1.0f;
     }
 
     for (int i = 0; i < count_of(asteroids.meteors); i++) {
         Meteor* meteor = &asteroids.meteors[i];
         if (!meteor->is_active) continue;
 
-        meteor->position = meteor->position + meteor->velocity * delta_time;
-        wrap_position(&meteor->position);
+        if (meteor->is_showing_score) {
+            if ((meteor->score_alpha -= delta_time) <= 0.0f) {
+                meteor->is_active = false;
+            }
+            else {
+                Vector2 position = world_projection * meteor->position;
 
-        if (check_collision(asteroids.player.position, PLAYER_RADIUS, meteor->position, meteor->radius)) {
-            // switch_game_mode(GM_MENU);
-        }
+                position.x = ((position.x + 1) / 2.0f) * SCREEN_WIDTH;
+                position.y = ((position.y + 1) / 2.0f) * SCREEN_HEIGHT;
 
-        for (int i = 0; i < count_of(asteroids.lasers); i++) {
-            Laser* laser = &asteroids.lasers[i];
-            if (!laser->is_active) continue;
-
-            if (check_collision(meteor->position, meteor->radius, laser->position, LASER_RADIUS)) {
-                meteor->is_destroyed = true;
-                laser->is_active     = false;
-
-                Vector2 position = meteor->position + (normalize(laser->position - meteor->position) * meteor->radius);
-                emit_particles(position, 0.25f, 0.25f, 5.0f);
-
-                break;
+                draw_text(format_string("%i", meteor->score), position, make_color(1.0f, 1.0f, 1.0f, meteor->score_alpha));
             }
         }
+        else {
+            meteor->position = meteor->position + meteor->velocity * delta_time;
+            wrap_position(&meteor->position);
 
-        draw_sprite(meteor->sprite, meteor->position, 0.0f);
+            if (check_collision(asteroids.player.position, PLAYER_RADIUS, meteor->position, meteor->radius)) {
+                // switch_game_mode(GM_MENU);
+            }
 
-        if (DRAW_COLLIDERS) {
-            draw_circle(meteor->position, meteor->radius, GREEN);
+            for (int i = 0; i < count_of(asteroids.lasers); i++) {
+                Laser* laser = &asteroids.lasers[i];
+                if (!laser->is_active) continue;
+
+                if (check_collision(meteor->position, meteor->radius, laser->position, LASER_RADIUS)) {
+                    meteor->is_destroyed = true;
+                    laser->is_active     = false;
+
+                    Vector2 position = meteor->position + (normalize(laser->position - meteor->position) * meteor->radius);
+                    emit_particles(position, 0.25f, 0.25f, 5.0f);
+
+                    break;
+                }
+            }
+
+            draw_sprite(meteor->sprite, meteor->position, 0.0f);
+
+            if (DRAW_COLLIDERS) {
+                draw_circle(meteor->position, meteor->radius, GREEN);
+            }
         }
     }
 
@@ -475,7 +495,9 @@ void update_asteroids() {
                     if (particle) {
                         particle->is_active = true;
                         
-                        particle->sprite_index = get_random_between((int) count_of(asteroids.particle_sprites) - 3, (int) count_of(asteroids.particle_sprites) - 1);
+                        int offset = count_of(asteroids.particle_sprites) - 1;
+
+                        particle->sprite_index = get_random_between(offset - 2, offset);
                         particle->sprite_timer = PARTICLE_FPS;
 
                         float offset_x = get_random_between(-emitter->radius, emitter->radius);
@@ -517,5 +539,6 @@ void update_asteroids() {
         }
     }
 
-    draw_text(format_string("Score: %i", asteroids.player.score), make_vector2(16.0f, 16.0f));
+    char* score_text = format_string("Score: %i", asteroids.player.score);
+    draw_text(score_text, make_vector2(HALF_SCREEN_WIDTH - (get_text_draw_width(score_text) / 2.0f), SCREEN_HEIGHT - 50.0f));
 }

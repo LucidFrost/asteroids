@@ -8,24 +8,12 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 
-const HANDLE STD_OUT      = GetStdHandle(STD_OUTPUT_HANDLE);
-const HANDLE PROCESS_HEAP = GetProcessHeap();
-
 const int SCREEN_WIDTH       = 1600;
 const int SCREEN_HEIGHT      = 900;
-
 const int HALF_SCREEN_WIDTH  = SCREEN_WIDTH  / 2;
 const int HALF_SCREEN_HEIGHT = SCREEN_HEIGHT / 2;
 
-char string_buffer[4066];
-uint64_t tick_frequency;
-
-uint64_t get_ticks() {
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-
-    return counter.QuadPart;
-}
+const HANDLE PROCESS_HEAP = GetProcessHeap();
 
 void* alloc(int size) {
     return HeapAlloc(PROCESS_HEAP, 0, size);
@@ -34,6 +22,9 @@ void* alloc(int size) {
 void dealloc(void* memory) {
     HeapFree(PROCESS_HEAP, 0, memory);
 }
+
+const HANDLE STD_OUT = GetStdHandle(STD_OUTPUT_HANDLE);
+char string_buffer[4066];
 
 char* format_string(char* format, ...) {
     va_list args;
@@ -78,7 +69,7 @@ void* read_entire_file(char* file_name) {
         CloseHandle(file_handle);
     }
     else {
-        print("Failed to open file '%s'\n", file_name);
+        print("Failed to read file '%s'\n", file_name);
     }
 
     return result;
@@ -100,8 +91,6 @@ struct Input {
     Key space;
 };
 
-Input input;
-
 void reset_key(Key* key) {
     key->up   = false;
     key->down = false;
@@ -120,6 +109,9 @@ void set_key_down(Key* key) {
     key->held = true;
     key->down = true;
 }
+
+bool  is_running = true;
+Input input;
 
 RECT old_clip_rect;
 
@@ -211,6 +203,19 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 
 HWND window;
 
+uint64_t tick_frequency;
+uint64_t last_ticks;
+uint64_t start_ticks;
+
+float delta_time;
+
+uint64_t get_ticks() {
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+
+    return counter.QuadPart;
+}
+
 void init_platform() {
     WNDCLASS window_class = {};
     window_class.style         = CS_OWNDC;
@@ -235,6 +240,19 @@ void init_platform() {
         window_class.hInstance, 
         NULL);
 
+    dc = GetDC(window);
+
+    PIXELFORMATDESCRIPTOR pixel_format_description = {};
+    pixel_format_description.nSize    = sizeof(PIXELFORMATDESCRIPTOR);
+    pixel_format_description.nVersion = 1;
+    pixel_format_description.dwFlags  = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+
+    int pixel_format = ChoosePixelFormat(dc, &pixel_format_description);
+    SetPixelFormat(dc, pixel_format, &pixel_format_description);
+
+    HGLRC rc = wglCreateContext(dc);
+    wglMakeCurrent(dc, rc);
+
     ShowWindow(window, TRUE);
 
     LARGE_INTEGER frequency;
@@ -244,6 +262,14 @@ void init_platform() {
 }
 
 void update_platform() {
+    start_ticks = get_ticks();
+    if (last_ticks == 0) last_ticks = start_ticks;
+    
+    delta_time = (double) (start_ticks - last_ticks) / (double) tick_frequency;
+    last_ticks = start_ticks;
+
+    if (delta_time > 1.0f) delta_time = 1.0f;
+
     reset_key(&input.any_key);
     reset_key(&input.left_mb);
     reset_key(&input.escape);

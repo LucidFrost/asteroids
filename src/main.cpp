@@ -1,116 +1,237 @@
-#include <stdint.h>
+#include <windows.h>
+
+#pragma comment(lib, "user32.lib")
+#pragma comment(lib, "gdi32.lib")
+
+#include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define count_of(array) (sizeof(array) / sizeof(array[0]))
 
-int get_string_length(char* string) {
-    char* at = string;
-    while (*at++);
-
-    return (int) (at - string - 1);
+void* operator new(size_t count) {
+    return malloc(count);
 }
 
-bool   is_running = true;
-double delta_time = 0.0f;
+void* operator new(size_t count, void* ptr) {
+    return ptr;
+}
 
-enum Game_Mode {
-    GM_NONE,
-    GM_MENU,
-    GM_ASTEROIDS
+void operator delete(void* ptr) {
+    free(ptr);
+}
+
+const int WINDOW_WIDTH  = 1600;
+const int WINDOW_HEIGHT = 900;
+
+struct Key {
+    bool up   = false;
+    bool down = false;
+    bool held = false;
 };
 
-Game_Mode game_mode = GM_NONE;
-bool game_mode_switched = false;
-
-void switch_game_mode(Game_Mode new_game_mode) {
-    game_mode = new_game_mode;
-    game_mode_switched = true;
+void on_key_update(Key* key) {
+    key->up   = false;
+    key->down = false;
 }
 
-#include "platform.cpp"
+void on_key_down(Key* key) {
+    if (key->held) return;
+
+    key->down = true;
+    key->held = true;
+}
+
+void on_key_up(Key* key) {
+    if (!key->held) return;
+    
+    key->up   = true;
+    key->held = false;
+}
+
+struct Input {
+    Key key_escape;
+
+    Key key_w;
+    Key key_a;
+    Key key_s;
+    Key key_d;
+};
+
+Input input;
+
+struct Time {
+    float frame_delta;
+};
+
+Time time;
+
 #include "math.cpp"
-#include "random.cpp"
 #include "draw.cpp"
-#include "sound.cpp"
+#include "asteroids.cpp"
 
-#include "gm_menu.cpp"
-#include "gm_asteroids.cpp"
+LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
+    LRESULT result = 0;
 
-int main() {
-    init_platform();
-    init_draw();
-
-    init_menu();
-    init_asteroids();
-
-    Sprite background_sprite = load_sprite("data/sprites/background.png");
-
-    uint64_t last_time = get_ticks();
-    seed_random(last_time);
-
-    while (is_running) {
-        uint64_t start_time = get_ticks();
-        
-        delta_time = (double) (start_time - last_time) / (double) tick_frequency;
-        last_time  = start_time;
-
-        update_platform();
-        draw_begin();
-
-        float background_x = -HALF_VIEWPORT_WIDTH;
-        float background_y = -HALF_VIEWPORT_HEIGHT;
-
-        float background_width  = get_sprite_draw_width(&background_sprite);
-        float background_height = get_sprite_draw_height(&background_sprite);
-
-        float background_x_count = VIEWPORT_WIDTH  / background_width;
-        float background_y_count = VIEWPORT_HEIGHT / background_height;
-
-        for (int x = 0; x < background_x_count; x++) {
-            for (int y = 0; y < background_y_count; y++) {
-                Vector2 position = make_vector2(background_x, background_y);
-                
-                position.x += (x * background_width)  + (background_width  / 2.0f);
-                position.y += (y * background_height) + (background_height / 2.0f);
-
-                draw_sprite(&background_sprite, position, 0.0f);
-            }
+    switch (message) {
+        case WM_DESTROY: {
+            PostQuitMessage(0);
+            break;
         }
-
-        if (game_mode_switched) {
-            switch (game_mode) {
-                case GM_MENU: {
-                    start_menu();
-                    break;
+        case WM_KEYUP: {
+            #define key_up_case(key, member)    \
+                case key: {                     \
+                    on_key_up(&input.member);   \
+                    break;                      \
                 }
-                case GM_ASTEROIDS: {
-                    start_asteroids();
+
+            switch (w_param) {
+                key_up_case(VK_ESCAPE, key_escape);
+
+                key_up_case('W', key_w);
+                key_up_case('A', key_a);
+                key_up_case('S', key_s);
+                key_up_case('D', key_d);
+
+                default: {
+                    result = DefWindowProc(window, message, w_param, l_param);
                     break;
                 }
             }
 
-            game_mode_switched = false;
-        }
+            #undef key_up_case
 
-        switch (game_mode) {
-            case GM_MENU: {
-                update_menu();
-                break;
-            }
-            case GM_ASTEROIDS: {
-                update_asteroids();
-                break;
-            }
-            default: {
-                print("Unhandled game mode specified, going to menu...\n");
-                switch_game_mode(GM_MENU);
+            break;
+        }
+        case WM_KEYDOWN: {
+            #define key_down_case(key, member)  \
+                case key: {                     \
+                    on_key_down(&input.member); \
+                    break;                      \
+                }
+
+            switch (w_param) {
+                key_down_case(VK_ESCAPE, key_escape);
                 
-                break;
-            }
-        }
+                key_down_case('W', key_w);
+                key_down_case('A', key_a);
+                key_down_case('S', key_s);
+                key_down_case('D', key_d);
 
-        draw_text(format_string("%f", delta_time), make_vector2(16.0f, SCREEN_HEIGHT - 32.0f));
-        draw_end();
+                default: {
+                    result = DefWindowProc(window, message, w_param, l_param);
+                    break;
+                }
+            }
+
+            #undef key_down_case
+
+            break;
+        }
+        default: {
+            result = DefWindowProc(window, message, w_param, l_param);
+            break;
+        }
     }
 
+    return result;
+}
+
+int main() {
+    WNDCLASS window_class = {
+        CS_OWNDC,
+        window_proc,
+        0,
+        0,
+        GetModuleHandle(NULL),
+        NULL,
+        NULL,
+        (HBRUSH) GetStockObject(BLACK_BRUSH),
+        NULL,
+        "WINDOW_CLASS"
+    };
+
+    RegisterClass(&window_class);
+
+    int window_x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (WINDOW_WIDTH  / 2);
+    int window_y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (WINDOW_HEIGHT / 2);
+
+    HWND window = CreateWindow(
+        window_class.lpszClassName, 
+        "Asteroids!", 
+        WS_POPUP | WS_VISIBLE, 
+        window_x, 
+        window_y, 
+        WINDOW_WIDTH, 
+        WINDOW_HEIGHT, 
+        NULL, 
+        NULL, 
+        window_class.hInstance, 
+        NULL);
+
+    HDC device_context = GetDC(window);
+
+    PIXELFORMATDESCRIPTOR pfd = {
+        sizeof(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        32,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        24,
+        8,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    int pfd_id = ChoosePixelFormat(device_context, &pfd);
+    SetPixelFormat(device_context, pfd_id, &pfd);
+
+    HGLRC rendering_context = wglCreateContext(device_context);
+    wglMakeCurrent(device_context, rendering_context);
+
+    init_draw();
+    init_asteroids();
+
+    while (1) {
+        time.frame_delta = 1.0f / 60.0f;
+
+        on_key_update(&input.key_escape);
+
+        on_key_update(&input.key_w);
+        on_key_update(&input.key_a);
+        on_key_update(&input.key_s);
+        on_key_update(&input.key_d);
+
+        bool should_quit = false;
+
+        MSG message;
+        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
+            if (message.message == WM_QUIT) {
+                should_quit = true;
+            }
+            else {
+                TranslateMessage(&message);
+                DispatchMessage(&message);
+            }
+        }
+
+        if (should_quit)           break;
+        if (input.key_escape.down) break;
+
+        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        update_asteroids();
+
+        SwapBuffers(device_context);
+    }
+    
     return 0;
 }

@@ -19,8 +19,8 @@ float lerp(float from, float step, float to) {
 }
 
 struct Vector2 {
-    float x = 0.0f;
-    float y = 0.0f;
+    float x;
+    float y;
 };
 
 Vector2 make_vector2(float x, float y) {
@@ -40,24 +40,12 @@ Vector2 operator +(Vector2 a, Vector2 b) {
     return make_vector2(a.x + b.x, a.y + b.y);
 }
 
-Vector2& operator +=(Vector2& a, Vector2 b) {
-    return a = a + b;
-}
-
 Vector2 operator -(Vector2 a, Vector2 b) {
     return make_vector2(a.x - b.x, a.y - b.y);
 }
 
-Vector2& operator -=(Vector2& a, Vector2 b) {
-    return a = a - b;
-}
-
 Vector2 operator *(Vector2 a, float b) {
     return make_vector2(a.x * b, a.y * b);
-}
-
-Vector2& operator *=(Vector2& a, float b) {
-    return a = a * b;
 }
 
 Vector2 operator *(float a, Vector2 b) {
@@ -97,30 +85,45 @@ Vector2 get_direction(float angle) {
 }
 
 struct Matrix4 {
-    float _11 = 0.0f;
-    float _12 = 0.0f;
-    float _13 = 0.0f;
-    float _14 = 0.0f;
-    float _21 = 0.0f;
-    float _22 = 0.0f;
-    float _23 = 0.0f;
-    float _24 = 0.0f;
-    float _31 = 0.0f;
-    float _32 = 0.0f;
-    float _33 = 0.0f;
-    float _34 = 0.0f;
-    float _41 = 0.0f;
-    float _42 = 0.0f;
-    float _43 = 0.0f;
-    float _44 = 0.0f;
+    float _11;
+    float _12;
+    float _13;
+    float _14;
+    float _21;
+    float _22;
+    float _23;
+    float _24;
+    float _31;
+    float _32;
+    float _33;
+    float _34;
+    float _41;
+    float _42;
+    float _43;
+    float _44;
 };
 
-Matrix4 make_identity_matrix() {
+Matrix4 make_identity() {
     Matrix4 matrix;
 
     matrix._11 = 1.0;
+    matrix._12 = 0.0;
+    matrix._13 = 0.0;
+    matrix._14 = 0.0;
+
+    matrix._21 = 0.0;
     matrix._22 = 1.0;
+    matrix._23 = 0.0;
+    matrix._24 = 0.0;
+
+    matrix._31 = 0.0;
+    matrix._32 = 0.0;
     matrix._33 = 1.0;
+    matrix._34 = 0.0;
+
+    matrix._41 = 0.0;
+    matrix._42 = 0.0;
+    matrix._43 = 0.0;
     matrix._44 = 1.0;
 
     return matrix;
@@ -159,8 +162,8 @@ Vector2 operator *(Matrix4 matrix, Vector2 vector) {
     return make_vector2(x, y);
 }
 
-Matrix4 make_orthographic_matrix(float left, float right, float top, float bottom, float far_plane = 1.0f, float near_plane = -1.0f) {
-    Matrix4 matrix = make_identity_matrix();
+Matrix4 make_ortho(float left, float right, float top, float bottom, float far_plane = 1.0f, float near_plane = -1.0f) {
+    Matrix4 matrix = make_identity();
 
     matrix._11 =  2.0f / (right - left);
     matrix._22 =  2.0f / (top - bottom);
@@ -173,10 +176,10 @@ Matrix4 make_orthographic_matrix(float left, float right, float top, float botto
     return matrix;
 }
 
-Matrix4 make_transform_matrix(Vector2 position, float orientation = 0.0f, float scale = 1.0f) {
-    Matrix4 translation = make_identity_matrix();
-    Matrix4 rotation    = make_identity_matrix();
-    Matrix4 scalar      = make_identity_matrix();
+Matrix4 make_transform(Vector2 position, float orientation = 0.0f, float scale = 1.0f) {
+    Matrix4 translation = make_identity();
+    Matrix4 rotation    = make_identity();
+    Matrix4 scalar      = make_identity();
 
     translation._41 = position.x;
     translation._42 = position.y;
@@ -195,8 +198,8 @@ Matrix4 make_transform_matrix(Vector2 position, float orientation = 0.0f, float 
     return translation * rotation * scalar;
 }
 
-// @note: This was lifted from the MESA implementation of the GLU library.
-Matrix4 make_inverse_matrix(Matrix4 matrix) {
+// @note: This was lifted from MESA implementation of the GLU library.
+Matrix4 make_inverse(Matrix4 matrix) {
     Matrix4 inverse;
 
     inverse._11 = 
@@ -333,8 +336,8 @@ Matrix4 make_inverse_matrix(Matrix4 matrix) {
          matrix._13 * inverse._31 + 
          matrix._14 * inverse._41;
 
-    assert(determinant != 0.0f);
-    determinant = 1.0f / determinant;
+    assert(determinant != 0);
+    determinant = 1.0 / determinant;
 
     inverse._11 *= determinant;
     inverse._12 *= determinant;
