@@ -15,3 +15,5 @@ pushd build
 
     ..\tools\ctime -end asteroids.ctm %build_result%
 popd
+
+if %build_result% equ 0 build\asteroids.exe

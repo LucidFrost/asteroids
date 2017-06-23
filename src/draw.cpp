@@ -38,20 +38,14 @@ Sprite load_sprite(char* file_name) {
     glBindTexture(GL_TEXTURE_2D, 0);
     stbi_image_free(image);
 
-    printf("Loaded sprite at '%s',\n", file_name);
-    printf("{\n");
-    printf("    texture: %u,\n", sprite.texture);
-    printf("    width: %i,\n", sprite.width);
-    printf("    height: %i,\n", sprite.height);
-    printf("    aspect: %.2f\n", sprite.aspect);
-    printf("}\n");
-
+    printf("Loaded sprite '%s'\n", file_name);
     return sprite;
 }
 
 Sprite background_sprite;
 Sprite ship_sprite;
 Sprite laser_sprite;
+Sprite thrust_sprite;
 
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
@@ -88,6 +82,7 @@ void init_draw() {
     background_sprite = load_sprite("data/sprites/background.png");
     ship_sprite       = load_sprite("data/sprites/player_ship.png");
     laser_sprite      = load_sprite("data/sprites/player_laser.png");
+    thrust_sprite     = load_sprite("data/sprites/player_thrust.png");
 }
 
 void set_projection(Matrix4* projection) {

@@ -319,14 +319,6 @@ int main() {
 
         update_asteroids();
 
-        // @todo: Move gui_projection matrix out of asteroids?
-        set_projection(&gui_projection);
-
-        Matrix4 transform = make_transform_matrix(make_vector2(16.0f, WINDOW_HEIGHT - font_height - 16.0f));
-        set_transform(&transform);
-        
-        draw_text("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (int) (1.0f / time.delta));
-
         SwapBuffers(device_context);
     }
     
