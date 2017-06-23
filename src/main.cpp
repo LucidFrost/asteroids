@@ -1,4 +1,8 @@
+#define WIN32_LEAN_AND_MEAN
+#define STRICT
+
 #include <windows.h>
+#include <windowsx.h>
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -80,6 +84,12 @@ void on_key_up(Key* key) {
 }
 
 struct Input {
+    int mouse_x;
+    int mouse_y;
+
+    Key mouse_left;
+    Key mouse_right;
+
     Key key_escape;
 
     Key key_w;
@@ -112,6 +122,28 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
     switch (message) {
         case WM_DESTROY: {
             PostQuitMessage(0);
+            break;
+        }
+        case WM_MOUSEMOVE: {
+            input.mouse_x = GET_X_LPARAM(l_param);
+            input.mouse_y = GET_Y_LPARAM(l_param);
+
+            break;
+        }
+        case WM_LBUTTONUP: {
+            on_key_up(&input.mouse_left);
+            break;
+        }
+        case WM_LBUTTONDOWN: {
+            on_key_down(&input.mouse_left);
+            break;
+        }
+        case WM_RBUTTONUP: {
+            on_key_up(&input.mouse_right);
+            break;
+        }
+        case WM_RBUTTONDOWN: {
+            on_key_down(&input.mouse_right);
             break;
         }
         case WM_KEYUP: {
@@ -181,7 +213,7 @@ int main() {
         0,
         GetModuleHandle(NULL),
         NULL,
-        NULL,
+        LoadCursor(NULL, IDC_ARROW),
         (HBRUSH) GetStockObject(BLACK_BRUSH),
         NULL,
         "WINDOW_CLASS"
@@ -256,6 +288,9 @@ int main() {
         time.now   = (float) (time.ticks_current - time.ticks_start) / (float) time.ticks_frequency;
         time.delta = (float) (time.ticks_current - time.ticks_last)  / (float) time.ticks_frequency;
 
+        on_key_update(&input.mouse_left);
+        on_key_update(&input.mouse_right);
+
         on_key_update(&input.key_escape);
 
         on_key_update(&input.key_w);
@@ -283,6 +318,14 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         update_asteroids();
+
+        // @todo: Move gui_projection matrix out of asteroids?
+        set_projection(&gui_projection);
+
+        Matrix4 transform = make_transform_matrix(make_vector2(16.0f, WINDOW_HEIGHT - font_height - 16.0f));
+        set_transform(&transform);
+        
+        draw_text("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (int) (1.0f / time.delta));
 
         SwapBuffers(device_context);
     }

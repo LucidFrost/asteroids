@@ -96,6 +96,10 @@ Vector2 get_direction(float angle) {
     return make_vector2(x, y);
 }
 
+float get_angle(Vector2 direction) {
+    return to_degrees(atan2f(direction.y, direction.x)) - 90.0f;
+}
+
 struct Matrix4 {
     float _11 = 0.0f;
     float _12 = 0.0f;

@@ -16,8 +16,9 @@ GLuint          font_texture;
 struct Sprite {
     GLuint texture = 0;
 
-    int width  = 0;
-    int height = 0;
+    int   width  = 0;
+    int   height = 0;
+    float aspect = 0.0f;
 };
 
 Sprite load_sprite(char* file_name) {
@@ -25,6 +26,8 @@ Sprite load_sprite(char* file_name) {
 
     uint8_t* image = stbi_load(file_name, &sprite.width, &sprite.height, NULL, 4);
     assert(image);
+
+    sprite.aspect = (float) sprite.width / (float) sprite.height;
 
     glGenTextures(1, &sprite.texture);
     glBindTexture(GL_TEXTURE_2D, sprite.texture);
@@ -35,42 +38,20 @@ Sprite load_sprite(char* file_name) {
     glBindTexture(GL_TEXTURE_2D, 0);
     stbi_image_free(image);
 
+    printf("Loaded sprite at '%s',\n", file_name);
+    printf("{\n");
+    printf("    texture: %u,\n", sprite.texture);
+    printf("    width: %i,\n", sprite.width);
+    printf("    height: %i,\n", sprite.height);
+    printf("    aspect: %.2f\n", sprite.aspect);
+    printf("}\n");
+
     return sprite;
-}
-
-void draw_sprite(Sprite* sprite, bool center = true) {
-    glBindTexture(GL_TEXTURE_2D, sprite->texture);
-    glBegin(GL_QUADS);
-
-    float height = 1.0f;
-    float width  = height * ((float) sprite->width / (float) sprite->height);
-
-    float x = 0.0f;
-    float y = 0.0f;
-
-    if (center) {
-        x -= width  / 2.0f;
-        y -= height / 2.0f;
-    }
-
-    glTexCoord2f(0.0f, 1.0f);
-    glVertex2f(x, y);
-
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(x + width, y);
-
-    glTexCoord2f(1.0f, 0.0f);
-    glVertex2f(x + width, y + height);
-
-    glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(x, y + height);
-
-    glEnd();
-    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 Sprite background_sprite;
 Sprite ship_sprite;
+Sprite laser_sprite;
 
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
@@ -106,6 +87,7 @@ void init_draw() {
 
     background_sprite = load_sprite("data/sprites/background.png");
     ship_sprite       = load_sprite("data/sprites/player_ship.png");
+    laser_sprite      = load_sprite("data/sprites/player_laser.png");
 }
 
 void set_projection(Matrix4* projection) {
@@ -118,17 +100,22 @@ void set_transform(Matrix4* transform) {
     glLoadMatrixf((float*) transform);
 }
 
-void draw_rectangle(float width, float height, float r, float g, float b, float a) {
-    glBegin(GL_QUADS);
+void draw_rectangle(float width, float height, float r, float g, float b, float a, bool center = true, bool fill = true) {
+    glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
     glColor4f(r, g, b, a);
 
-    float half_width  = width  / 2.0f;
-    float half_height = height / 2.0f;
+    float x = 0.0f;
+    float y = 0.0f;
 
-    glVertex2f(-half_width, -half_height);
-    glVertex2f( half_width, -half_height);
-    glVertex2f( half_width,  half_height);
-    glVertex2f(-half_width,  half_height);
+    if (center) {
+        x -= width  / 2.0f;
+        y -= height / 2.0f;
+    }
+
+    glVertex2f(x,         y);
+    glVertex2f(x + width, y);
+    glVertex2f(x + width, y + height);
+    glVertex2f(x,         y + height);
 
     glEnd();
 }
@@ -142,6 +129,8 @@ void draw_text(char* string, ...) {
 
     glBindTexture(GL_TEXTURE_2D, font_texture);
     glBegin(GL_QUADS);
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
     float offset_x = 0.0f;
     float offset_y = 0.0f;
@@ -166,6 +155,36 @@ void draw_text(char* string, ...) {
 
         string += 1;
     }
+
+    glEnd();
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void draw_sprite(Sprite* sprite, float width, float height, bool center = true) {
+    glBindTexture(GL_TEXTURE_2D, sprite->texture);
+    glBegin(GL_QUADS);
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    float x = 0.0f;
+    float y = 0.0f;
+
+    if (center) {
+        x -= width  / 2.0f;
+        y -= height / 2.0f;
+    }
+
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex2f(x, y);
+
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(x + width, y);
+
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex2f(x + width, y + height);
+
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2f(x, y + height);
 
     glEnd();
     glBindTexture(GL_TEXTURE_2D, 0);
