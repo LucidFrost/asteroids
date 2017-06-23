@@ -46,6 +46,9 @@ Sprite background_sprite;
 Sprite ship_sprite;
 Sprite laser_sprite;
 Sprite thrust_sprite;
+Sprite asteroid_small_sprite;
+Sprite asteroid_medium_sprite;
+Sprite asteroid_large_sprite;
 
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
@@ -79,10 +82,13 @@ void init_draw() {
     glBindTexture(GL_TEXTURE_2D, 0);
     free(ttf_file);
 
-    background_sprite = load_sprite("data/sprites/background.png");
-    ship_sprite       = load_sprite("data/sprites/player_ship.png");
-    laser_sprite      = load_sprite("data/sprites/player_laser.png");
-    thrust_sprite     = load_sprite("data/sprites/player_thrust.png");
+    background_sprite      = load_sprite("data/sprites/background.png");
+    ship_sprite            = load_sprite("data/sprites/ship.png");
+    laser_sprite           = load_sprite("data/sprites/laser.png");
+    thrust_sprite          = load_sprite("data/sprites/thrust.png");
+    asteroid_small_sprite  = load_sprite("data/sprites/asteroid_small.png");
+    asteroid_medium_sprite = load_sprite("data/sprites/asteroid_medium.png");
+    asteroid_large_sprite  = load_sprite("data/sprites/asteroid_large.png");
 }
 
 void set_projection(Matrix4* projection) {
@@ -111,6 +117,18 @@ void draw_rectangle(float width, float height, float r, float g, float b, float 
     glVertex2f(x + width, y);
     glVertex2f(x + width, y + height);
     glVertex2f(x,         y + height);
+
+    glEnd();
+}
+
+void draw_circle(float radius, float r, float g, float b, float a, bool fill = true) {
+    glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
+    glColor4f(r, g, b, a);
+
+    for (int i = 0; i < 360; i++) {
+        float theta = to_radians((float) i);
+        glVertex2f(cosf(theta) * radius, sinf(theta) * radius);
+    }
 
     glEnd();
 }

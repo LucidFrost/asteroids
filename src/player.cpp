@@ -1,3 +1,9 @@
+// @todo:
+//  - The player can send the ship into hyperspace, causing it to disappear and reappear 
+//    in a random location on the screen, at the risk of self-destructing or appearing on top 
+//    of an asteroid.
+//
+
 struct Player {
     int left_thrust_id  = -1;
     int right_thrust_id = -1;
@@ -7,9 +13,18 @@ struct Player {
 
     int last_mouse_x = 0;
     int last_mouse_y = 0;
+
+    int score = 0;
 };
 
-void create_player(Entity* entity) {
+void add_score(Entity* entity, int score) {
+    entity->player->score += score;
+}
+
+void player_on_create(Entity* entity) {
+    entity->has_collider    = true;
+    entity->collider_radius = 0.5f;
+
     entity->sprite = &ship_sprite;
 
     Entity* left_thrust = create_entity(Entity_Type::NONE, entity);
@@ -30,7 +45,7 @@ void create_player(Entity* entity) {
     entity->player->right_thrust_id = right_thrust->id;
 }
 
-void destroy_player(Entity* entity) {
+void player_on_destroy(Entity* entity) {
     Entity* left_thrust  = find_entity(entity->player->left_thrust_id);
     Entity* right_thrust = find_entity(entity->player->right_thrust_id);
     
@@ -38,14 +53,16 @@ void destroy_player(Entity* entity) {
     destroy_entity(right_thrust);
 }
 
-void update_player(Entity* entity) {
+void player_on_update(Entity* entity) {
     Vector2 acceleration;
 
-    if (input.key_w.held) acceleration += get_direction(entity->orientation) * 5.0f;
+    if (input.key_w.held) acceleration += get_direction(entity->orientation) * 15.0f;
     if (input.key_s.held) acceleration -= get_direction(entity->orientation);
 
     entity->position += (entity->player->velocity * time.delta) + (0.5f * acceleration * square(time.delta));
+
     entity->player->velocity += acceleration * time.delta;
+    entity->player->velocity -= entity->player->velocity * 0.5f * time.delta;
 
     Entity* left_thrust  = find_entity(entity->player->left_thrust_id);
     Entity* right_thrust = find_entity(entity->player->right_thrust_id);
@@ -78,9 +95,21 @@ void update_player(Entity* entity) {
 
     if (input.mouse_left.down) {
         Entity* laser_entity = create_entity(Entity_Type::LASER);
-        laser_entity->laser->shooter_id = entity->id;
+        laser_entity->laser->player_id = entity->id;
 
         laser_entity->position    = entity->position + (get_direction(entity->orientation) * 0.75f);
         laser_entity->orientation = entity->orientation;
+    }
+}
+
+void player_on_collision(Entity* us, Entity* them) {
+    if (them->type == Entity_Type::ASTEROID) {
+        us->position    = make_vector2();
+        us->orientation = 0.0f;
+        
+        us->player->velocity          = make_vector2();
+        us->player->desired_direction = make_vector2();
+
+        destroy_entity(them);
     }
 }

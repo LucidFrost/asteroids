@@ -55,6 +55,36 @@ void* read_entire_file(char* file_name) {
     return result;
 }
 
+#include "math.cpp"
+
+void seed_random(int seed) {
+    srand(seed);
+}
+
+int get_random_int() {
+    return rand();
+}
+
+int get_random_out_of(int count) {
+    return get_random_int() % count;
+}
+
+float get_random_unilateral() {
+    return (float) get_random_int() / (float) RAND_MAX;
+}
+
+float get_random_bilateral() {
+    return (2.0f * get_random_unilateral()) - 1.0f;
+}
+
+float get_random_between(float min, float max) {
+    return lerp(min, get_random_unilateral(), max);
+}
+
+int get_random_between(int min, int max) {
+    return min + (get_random_int() % ((max + 1) - min));
+}
+
 const int WINDOW_WIDTH  = 1600;
 const int WINDOW_HEIGHT = 900;
 
@@ -112,9 +142,8 @@ struct Time {
 
 Time time;
 
-#include "math.cpp"
 #include "draw.cpp"
-#include "asteroids.cpp"
+#include "game.cpp"
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
     LRESULT result = 0;
@@ -147,19 +176,19 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
             break;
         }
         case WM_KEYUP: {
-            #define key_up_case(key, member)    \
+            #define case(key, member)    \
                 case key: {                     \
                     on_key_up(&input.member);   \
                     break;                      \
                 }
 
             switch (w_param) {
-                key_up_case(VK_ESCAPE, key_escape);
+                case(VK_ESCAPE, key_escape);
 
-                key_up_case('W', key_w);
-                key_up_case('A', key_a);
-                key_up_case('S', key_s);
-                key_up_case('D', key_d);
+                case('W', key_w);
+                case('A', key_a);
+                case('S', key_s);
+                case('D', key_d);
 
                 default: {
                     result = DefWindowProc(window, message, w_param, l_param);
@@ -167,24 +196,24 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
                 }
             }
 
-            #undef key_up_case
+            #undef case
 
             break;
         }
         case WM_KEYDOWN: {
-            #define key_down_case(key, member)  \
+            #define case(key, member)  \
                 case key: {                     \
                     on_key_down(&input.member); \
                     break;                      \
                 }
 
             switch (w_param) {
-                key_down_case(VK_ESCAPE, key_escape);
+                case(VK_ESCAPE, key_escape);
                 
-                key_down_case('W', key_w);
-                key_down_case('A', key_a);
-                key_down_case('S', key_s);
-                key_down_case('D', key_d);
+                case('W', key_w);
+                case('A', key_a);
+                case('S', key_s);
+                case('D', key_d);
 
                 default: {
                     result = DefWindowProc(window, message, w_param, l_param);
@@ -192,7 +221,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
                 }
             }
 
-            #undef key_down_case
+            #undef case
 
             break;
         }
@@ -275,8 +304,10 @@ int main() {
     time.ticks_last      = ticks_start.QuadPart;
     time.ticks_current   = ticks_start.QuadPart;
 
+    seed_random(time.ticks_start);
+
     init_draw();
-    init_asteroids();
+    init_game();
 
     while (1) {
         LARGE_INTEGER ticks;
@@ -317,7 +348,7 @@ int main() {
         glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        update_asteroids();
+        update_game();
 
         SwapBuffers(device_context);
     }
