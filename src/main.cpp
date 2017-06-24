@@ -14,6 +14,15 @@
 
 #define count_of(array) (sizeof(array) / sizeof(array[0]))
 
+typedef uint8_t  u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef  int8_t  i8;
+typedef  int16_t i16;
+typedef  int32_t i32;
+typedef  int64_t i64;
+
 void* operator new(size_t count)            { return malloc(count); }
 void* operator new(size_t count, void* ptr) { return ptr; }
 void  operator delete(void* ptr)            { free(ptr); }
@@ -69,6 +78,10 @@ int get_random_out_of(int count) {
     return get_random_int() % count;
 }
 
+bool get_random_chance(int chance) {
+    return get_random_out_of(chance) == chance - 1;
+}
+
 float get_random_unilateral() {
     return (float) get_random_int() / (float) RAND_MAX;
 }
@@ -121,6 +134,7 @@ struct Input {
     Key mouse_right;
 
     Key key_escape;
+    Key key_space;
 
     Key key_w;
     Key key_a;
@@ -141,8 +155,10 @@ struct Time {
 };
 
 Time time;
+bool should_quit;
 
 #include "draw.cpp"
+#include "sound.cpp"
 #include "game.cpp"
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
@@ -184,6 +200,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 
             switch (w_param) {
                 case(VK_ESCAPE, key_escape);
+                case(VK_SPACE,  key_space);
 
                 case('W', key_w);
                 case('A', key_a);
@@ -209,6 +226,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 
             switch (w_param) {
                 case(VK_ESCAPE, key_escape);
+                case(VK_SPACE,  key_space);
                 
                 case('W', key_w);
                 case('A', key_a);
@@ -307,6 +325,7 @@ int main() {
     seed_random(time.ticks_start);
 
     init_draw();
+    init_sound();
     init_game();
 
     while (1) {
@@ -323,13 +342,12 @@ int main() {
         on_key_update(&input.mouse_right);
 
         on_key_update(&input.key_escape);
+        on_key_update(&input.key_space);
 
         on_key_update(&input.key_w);
         on_key_update(&input.key_a);
         on_key_update(&input.key_s);
         on_key_update(&input.key_d);
-
-        bool should_quit = false;
 
         MSG message;
         while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
@@ -342,8 +360,7 @@ int main() {
             }
         }
 
-        if (should_quit)           break;
-        if (input.key_escape.down) break;
+        if (should_quit) break;
 
         glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);

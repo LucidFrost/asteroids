@@ -1,13 +1,15 @@
 enum struct Asteroid_Size {
+    NONE,
     SMALL,
     MEDIUM,
     LARGE
 };
 
 struct Asteroid {
-    Asteroid_Size size;
-    int           score;
-    Vector2       velocity;
+    Asteroid_Size size = Asteroid_Size::NONE;
+    int score = 0;
+
+    Vector2 velocity;
 };
 
 void set_asteroid_size(Entity* entity, Asteroid_Size size) {

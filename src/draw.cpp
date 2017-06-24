@@ -49,6 +49,8 @@ Sprite thrust_sprite;
 Sprite asteroid_small_sprite;
 Sprite asteroid_medium_sprite;
 Sprite asteroid_large_sprite;
+Sprite enemy_big_sprite;
+Sprite enemy_small_sprite;
 
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
@@ -89,6 +91,8 @@ void init_draw() {
     asteroid_small_sprite  = load_sprite("data/sprites/asteroid_small.png");
     asteroid_medium_sprite = load_sprite("data/sprites/asteroid_medium.png");
     asteroid_large_sprite  = load_sprite("data/sprites/asteroid_large.png");
+    enemy_big_sprite       = load_sprite("data/sprites/enemy_big.png");
+    enemy_small_sprite     = load_sprite("data/sprites/enemy_small.png");
 }
 
 void set_projection(Matrix4* projection) {
