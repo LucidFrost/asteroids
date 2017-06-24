@@ -101,48 +101,8 @@ int get_random_between(int min, int max) {
 const int WINDOW_WIDTH  = 1600;
 const int WINDOW_HEIGHT = 900;
 
-struct Key {
-    bool up   = false;
-    bool down = false;
-    bool held = false;
-};
-
-void on_key_update(Key* key) {
-    key->up   = false;
-    key->down = false;
-}
-
-void on_key_down(Key* key) {
-    if (key->held) return;
-
-    key->down = true;
-    key->held = true;
-}
-
-void on_key_up(Key* key) {
-    if (!key->held) return;
-    
-    key->up   = true;
-    key->held = false;
-}
-
-struct Input {
-    int mouse_x;
-    int mouse_y;
-
-    Key mouse_left;
-    Key mouse_right;
-
-    Key key_escape;
-    Key key_space;
-
-    Key key_w;
-    Key key_a;
-    Key key_s;
-    Key key_d;
-};
-
-Input input;
+HWND window;
+bool should_quit;
 
 struct Time {
     uint64_t ticks_frequency = 0;
@@ -155,10 +115,11 @@ struct Time {
 };
 
 Time time;
-bool should_quit;
 
+#include "input.cpp"
 #include "draw.cpp"
 #include "sound.cpp"
+
 #include "game.cpp"
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
@@ -166,81 +127,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 
     switch (message) {
         case WM_DESTROY: {
-            PostQuitMessage(0);
-            break;
-        }
-        case WM_MOUSEMOVE: {
-            input.mouse_x = GET_X_LPARAM(l_param);
-            input.mouse_y = GET_Y_LPARAM(l_param);
-
-            break;
-        }
-        case WM_LBUTTONUP: {
-            on_key_up(&input.mouse_left);
-            break;
-        }
-        case WM_LBUTTONDOWN: {
-            on_key_down(&input.mouse_left);
-            break;
-        }
-        case WM_RBUTTONUP: {
-            on_key_up(&input.mouse_right);
-            break;
-        }
-        case WM_RBUTTONDOWN: {
-            on_key_down(&input.mouse_right);
-            break;
-        }
-        case WM_KEYUP: {
-            #define case(key, member)    \
-                case key: {                     \
-                    on_key_up(&input.member);   \
-                    break;                      \
-                }
-
-            switch (w_param) {
-                case(VK_ESCAPE, key_escape);
-                case(VK_SPACE,  key_space);
-
-                case('W', key_w);
-                case('A', key_a);
-                case('S', key_s);
-                case('D', key_d);
-
-                default: {
-                    result = DefWindowProc(window, message, w_param, l_param);
-                    break;
-                }
-            }
-
-            #undef case
-
-            break;
-        }
-        case WM_KEYDOWN: {
-            #define case(key, member)  \
-                case key: {                     \
-                    on_key_down(&input.member); \
-                    break;                      \
-                }
-
-            switch (w_param) {
-                case(VK_ESCAPE, key_escape);
-                case(VK_SPACE,  key_space);
-                
-                case('W', key_w);
-                case('A', key_a);
-                case('S', key_s);
-                case('D', key_d);
-
-                default: {
-                    result = DefWindowProc(window, message, w_param, l_param);
-                    break;
-                }
-            }
-
-            #undef case
-
+            should_quit = true;
             break;
         }
         default: {
@@ -271,7 +158,7 @@ int main() {
     int window_x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (WINDOW_WIDTH  / 2);
     int window_y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (WINDOW_HEIGHT / 2);
 
-    HWND window = CreateWindow(
+    window = CreateWindow(
         window_class.lpszClassName, 
         "Asteroids!", 
         WS_POPUP | WS_VISIBLE, 
@@ -326,9 +213,10 @@ int main() {
 
     init_draw();
     init_sound();
+    
     init_game();
 
-    while (1) {
+    while (!should_quit) {
         LARGE_INTEGER ticks;
         QueryPerformanceCounter(&ticks);
 
@@ -338,33 +226,13 @@ int main() {
         time.now   = (float) (time.ticks_current - time.ticks_start) / (float) time.ticks_frequency;
         time.delta = (float) (time.ticks_current - time.ticks_last)  / (float) time.ticks_frequency;
 
-        on_key_update(&input.mouse_left);
-        on_key_update(&input.mouse_right);
-
-        on_key_update(&input.key_escape);
-        on_key_update(&input.key_space);
-
-        on_key_update(&input.key_w);
-        on_key_update(&input.key_a);
-        on_key_update(&input.key_s);
-        on_key_update(&input.key_d);
-
         MSG message;
         while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
-            if (message.message == WM_QUIT) {
-                should_quit = true;
-            }
-            else {
-                TranslateMessage(&message);
-                DispatchMessage(&message);
-            }
+            TranslateMessage(&message);
+            DispatchMessage(&message);
         }
 
-        if (should_quit) break;
-
-        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
+        update_input();
         update_game();
 
         SwapBuffers(device_context);

@@ -100,6 +100,8 @@ void asteroid_on_destroy(Entity* entity) {
             break;
         }
     }
+
+    play_sound(&kill_02_sound);
 }
 
 void asteroid_on_update(Entity* entity) {

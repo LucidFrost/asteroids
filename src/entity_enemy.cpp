@@ -25,6 +25,8 @@ struct Enemy {
 };
 
 void spawn_enemy(Entity* entity) {
+    if (!entity->enemy->is_dead) return;
+
     entity->enemy->is_dead = false;
 
     if (the_player->player->score >= 40000) {
@@ -80,13 +82,21 @@ void spawn_enemy(Entity* entity) {
     }
 
     entity->enemy->next_fire = entity->enemy->fire_rate;
+
+    printf("spawn enemy\n");
+    play_sound(&spawn_sound);
 }
 
 void kill_enemy(Entity* entity) {
+    if (entity->enemy->is_dead) return;
+
     entity->enemy->respawn_timer = get_random_between(5.0f, 15.0f);
     entity->enemy->is_dead = true;
     
     entity->is_visible = false;
+
+    printf("kill enemy\n");
+    play_sound(&kill_01_sound);
 }
 
 void enemy_on_create(Entity* entity) {

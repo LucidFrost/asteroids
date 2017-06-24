@@ -19,6 +19,7 @@ struct Player {
     int score_since_last_life = 0;
     int lives = 3;
 
+    bool use_desired_direction = false;
     bool is_dead = false;
 };
 
@@ -33,6 +34,8 @@ void add_score(Entity* entity, int score) {
 }
 
 void spawn_player(Entity* entity) {
+    if (!entity->player->is_dead) return;
+
     entity->is_visible = true;
 
     entity->position    = make_vector2();
@@ -44,9 +47,12 @@ void spawn_player(Entity* entity) {
     entity->player->is_dead = false;
 
     play_sound(&spawn_sound);
+    printf("spawn player\n");
 }
 
 void kill_player(Entity* entity) {
+    if (entity->player->is_dead) return;
+
     entity->is_visible = false;
 
     entity->player->lives -= 1;
@@ -58,7 +64,8 @@ void kill_player(Entity* entity) {
     left_thrust->is_visible  = false;
     right_thrust->is_visible = false;
 
-    play_sound(&kill_sound);
+    play_sound(&kill_01_sound);
+    printf("kill player\n");
 }
 
 void player_on_create(Entity* entity) {
@@ -102,8 +109,13 @@ void player_on_update(Entity* entity) {
     else {
         Vector2 acceleration;
 
-        if (input.key_w.held) acceleration += get_direction(entity->orientation) * 15.0f;
-        // if (input.key_s.held) acceleration -= get_direction(entity->orientation);
+        if (input.gamepad_left_y > 0.0f) {
+            acceleration = get_direction(entity->orientation) * 10.0f * input.gamepad_left_y;
+        }
+
+        if (input.key_w.held) {
+            acceleration = get_direction(entity->orientation) * 10.0f;
+        }
 
         entity->position += (entity->player->velocity * time.delta) + (0.5f * acceleration * square(time.delta));
 
@@ -123,7 +135,11 @@ void player_on_update(Entity* entity) {
             right_thrust->is_visible = false;
         }
 
-        // @todo: maybe better to remove this and always track the mouse?
+        if (input.gamepad_right_x) {
+            entity->orientation += 100.0f * input.gamepad_right_x * time.delta;
+            entity->player->use_desired_direction = false;
+        }
+
         if (input.mouse_x != entity->player->last_mouse_x || input.mouse_y != entity->player->last_mouse_y) {
             float normalized_x = ((2.0f * input.mouse_x) / WINDOW_WIDTH) - 1.0f;
             float normalized_y = 1.0f - ((2.0f * input.mouse_y) / WINDOW_HEIGHT);
@@ -133,14 +149,18 @@ void player_on_update(Entity* entity) {
             
             entity->player->last_mouse_x = input.mouse_x;
             entity->player->last_mouse_y = input.mouse_y;
+
+            entity->player->use_desired_direction = true;
         }
 
-        Vector2 current_direction = get_direction(entity->orientation);
-        Vector2 new_direction     = lerp(current_direction, 12.5f * time.delta, entity->player->desired_direction);
+        if (entity->player->use_desired_direction) {
+            Vector2 current_direction = get_direction(entity->orientation);
+            Vector2 new_direction     = lerp(current_direction, 12.5f * time.delta, entity->player->desired_direction);
 
-        entity->orientation = get_angle(new_direction);
+            entity->orientation = get_angle(new_direction);
+        }
 
-        if (input.mouse_left.down) {
+        if (input.mouse_left.down || input.gamepad_a.down) {
             Entity* laser = create_entity(Entity_Type::LASER);
             set_shooter(laser, entity);
 

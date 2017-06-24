@@ -114,7 +114,8 @@ Sound music_sound;
 Sound laser_01_sound;
 Sound laser_02_sound;
 Sound spawn_sound;
-Sound kill_sound;
+Sound kill_01_sound;
+Sound kill_02_sound;
 
 void init_sound() {
     XAudio2Create(&x_audio, 0, XAUDIO2_DEFAULT_PROCESSOR);
@@ -124,5 +125,6 @@ void init_sound() {
     laser_01_sound = load_sound("data/sounds/laser_01.ogg");
     laser_02_sound = load_sound("data/sounds/laser_02.ogg");
     spawn_sound    = load_sound("data/sounds/spawn.ogg");
-    kill_sound     = load_sound("data/sounds/kill.ogg");
+    kill_01_sound  = load_sound("data/sounds/kill_01.ogg");
+    kill_02_sound  = load_sound("data/sounds/kill_02.ogg");
 }

@@ -94,10 +94,10 @@ Entity* create_entity(Entity_Type type, Entity* parent = &root_entity);
 void    destroy_entity(Entity* entity);
 Entity* find_entity(int id);
 
-#include "asteroid.cpp"
-#include "player.cpp"
-#include "enemy.cpp"
-#include "laser.cpp"
+#include "entity_asteroid.cpp"
+#include "entity_player.cpp"
+#include "entity_enemy.cpp"
+#include "entity_laser.cpp"
 
 #define entity_storage(Type, type, count)   \
     Type type##_buffer[count];              \
@@ -324,7 +324,7 @@ void update_game() {
     music_volume = lerp(music_volume, 0.05f * time.delta, 0.15f);
     set_volume(playing_music, music_volume);
 
-    if (input.key_escape.down) {
+    if (input.key_escape.down || input.gamepad_start.down) {
         is_showing_menu = !is_showing_menu;
     }
 
@@ -369,6 +369,9 @@ void update_game() {
 
         build_entity_hierarchy(&root_entity);
     }
+
+    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     set_projection(&world_projection);
 
