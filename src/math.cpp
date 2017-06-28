@@ -163,7 +163,7 @@ Vector2 operator *(Matrix4 matrix, Vector2 vector) {
     return make_vector2(x, y);
 }
 
-Matrix4 make_orthographic_matrix(float left, float right, float top, float bottom, float far_plane = 1.0f, float near_plane = -1.0f) {
+Matrix4 make_orthographic_matrix(float left, float right, float top, float bottom, float near_plane = -1.0f, float far_plane = 1.0f) {
     Matrix4 matrix = make_identity_matrix();
 
     matrix._11 =  2.0f / (right - left);

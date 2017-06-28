@@ -19,8 +19,7 @@ struct Player {
     int score_since_last_life = 0;
     int lives = 3;
 
-    bool use_desired_direction = false;
-    bool is_dead = false;
+    bool is_dead = true;
 };
 
 void add_score(Entity* entity, int score) {
@@ -34,26 +33,20 @@ void add_score(Entity* entity, int score) {
 }
 
 void spawn_player(Entity* entity) {
-    if (!entity->player->is_dead) return;
+    assert(entity->player->is_dead);
 
-    entity->is_visible = true;
-
-    entity->position    = make_vector2();
-    entity->orientation = 0.0f;
-    
+    entity->position                  = make_vector2();
+    entity->orientation               = 0.0f;
     entity->player->velocity          = make_vector2();
     entity->player->desired_direction = make_vector2();
-
-    entity->player->is_dead = false;
+    entity->player->is_dead           = false;
 
     play_sound(&spawn_sound);
-    printf("spawn player\n");
+    show_entity(entity);
 }
 
 void kill_player(Entity* entity) {
-    if (entity->player->is_dead) return;
-
-    entity->is_visible = false;
+    assert(!entity->player->is_dead);
 
     entity->player->lives -= 1;
     entity->player->is_dead = true;
@@ -61,35 +54,33 @@ void kill_player(Entity* entity) {
     Entity* left_thrust  = find_entity(entity->player->left_thrust_id);
     Entity* right_thrust = find_entity(entity->player->right_thrust_id);
 
-    left_thrust->is_visible  = false;
-    right_thrust->is_visible = false;
+    if (left_thrust->is_visible)  hide_entity(left_thrust);
+    if (right_thrust->is_visible) hide_entity(right_thrust);
 
     play_sound(&kill_01_sound);
-    printf("kill player\n");
+    hide_entity(entity);
 }
 
 void player_on_create(Entity* entity) {
-    entity->has_collider    = true;
-    entity->collider_radius = 0.5f;
-
     entity->sprite = &ship_sprite;
+    set_collider(entity, 0.5f);
 
     Entity* left_thrust = create_entity(Entity_Type::NONE, entity);
-    left_thrust->position = make_vector2(-0.3f, -0.5f);
-
-    left_thrust->sprite      = &thrust_sprite;
-    left_thrust->sprite_size = 0.5f;
-    left_thrust->is_visible  = false;
+    left_thrust->position     = make_vector2(-0.3f, -0.5f);
+    left_thrust->sprite       = &thrust_sprite;
+    left_thrust->sprite_size  = 0.5f;
+    left_thrust->sprite_order = -1;
 
     Entity* right_thrust = create_entity(Entity_Type::NONE, entity);
-    right_thrust->position = make_vector2(0.3f, -0.5f);
-
-    right_thrust->sprite      = &thrust_sprite;
-    right_thrust->sprite_size = 0.5f;
-    right_thrust->is_visible  = false;
+    right_thrust->position     = make_vector2(0.3f, -0.5f);
+    right_thrust->sprite       = &thrust_sprite;
+    right_thrust->sprite_size  = 0.5f;
+    right_thrust->sprite_order = -1;
 
     entity->player->left_thrust_id  = left_thrust->id;
     entity->player->right_thrust_id = right_thrust->id;
+
+    spawn_player(entity);
 }
 
 void player_on_destroy(Entity* entity) {
@@ -126,18 +117,18 @@ void player_on_update(Entity* entity) {
         Entity* right_thrust = find_entity(entity->player->right_thrust_id);
 
         if (input.key_w.down) {
-            left_thrust->is_visible  = true;
-            right_thrust->is_visible = true;
+            show_entity(left_thrust);
+            show_entity(right_thrust);
         }
 
         if (input.key_w.up) {
-            left_thrust->is_visible  = false;
-            right_thrust->is_visible = false;
+            hide_entity(left_thrust);
+            hide_entity(right_thrust);
         }
 
         if (input.gamepad_right_x) {
-            entity->orientation += 100.0f * input.gamepad_right_x * time.delta;
-            entity->player->use_desired_direction = false;
+            float desired_orientation = entity->orientation - (3500.0f * input.gamepad_right_x * time.delta);
+            entity->player->desired_direction = get_direction(desired_orientation);
         }
 
         if (input.mouse_x != entity->player->last_mouse_x || input.mouse_y != entity->player->last_mouse_y) {
@@ -149,18 +140,14 @@ void player_on_update(Entity* entity) {
             
             entity->player->last_mouse_x = input.mouse_x;
             entity->player->last_mouse_y = input.mouse_y;
-
-            entity->player->use_desired_direction = true;
         }
 
-        if (entity->player->use_desired_direction) {
-            Vector2 current_direction = get_direction(entity->orientation);
-            Vector2 new_direction     = lerp(current_direction, 12.5f * time.delta, entity->player->desired_direction);
+        Vector2 current_direction = get_direction(entity->orientation);
+        Vector2 new_direction     = lerp(current_direction, 12.5f * time.delta, entity->player->desired_direction);
 
-            entity->orientation = get_angle(new_direction);
-        }
+        entity->orientation = get_angle(new_direction);
 
-        if (input.mouse_left.down || input.gamepad_a.down) {
+        if (input.mouse_left.down || input.gamepad_right_trigger.down) {
             Entity* laser = create_entity(Entity_Type::LASER);
             set_shooter(laser, entity);
 
@@ -173,8 +160,10 @@ void player_on_update(Entity* entity) {
 void player_on_collision(Entity* us, Entity* them) {
     switch (them->type) {
         case Entity_Type::ASTEROID: {
-            kill_player(us);
-            destroy_entity(them);
+            if (!us->player->is_dead) {
+                kill_player(us);
+                destroy_entity(them);
+            }
 
             break;
         }

@@ -25,9 +25,7 @@ struct Enemy {
 };
 
 void spawn_enemy(Entity* entity) {
-    if (!entity->enemy->is_dead) return;
-
-    entity->enemy->is_dead = false;
+    assert(entity->enemy->is_dead);
 
     if (the_player->player->score >= 40000) {
         entity->enemy->mode = Enemy_Mode::SMALL;
@@ -43,25 +41,17 @@ void spawn_enemy(Entity* entity) {
 
     switch (entity->enemy->mode) {
         case Enemy_Mode::SMALL: {
-            entity->collider_radius = 0.375f;
-
-            entity->sprite      = &enemy_small_sprite;
-            entity->sprite_size = 0.75f;
-            entity->is_visible  = true;
-
-            entity->enemy->score = 1000;
+            entity->sprite           = &enemy_small_sprite;
+            entity->sprite_size      = 0.75f;
+            entity->enemy->score     = 1000;
             entity->enemy->fire_rate = 0.5f;
 
             break;
         }
         case Enemy_Mode::BIG: {
-            entity->collider_radius = 0.75f;
-            
-            entity->sprite      = &enemy_big_sprite;
-            entity->sprite_size = 1.5f;
-            entity->is_visible  = true;
-
-            entity->enemy->score = 200;
+            entity->sprite           = &enemy_big_sprite;
+            entity->sprite_size      = 1.5f;
+            entity->enemy->score     = 200;
             entity->enemy->fire_rate = 1.5f;
 
             break;
@@ -82,26 +72,26 @@ void spawn_enemy(Entity* entity) {
     }
 
     entity->enemy->next_fire = entity->enemy->fire_rate;
+    entity->enemy->is_dead   = false;
 
-    printf("spawn enemy\n");
+    set_collider(entity, entity->sprite_size / 2.0f);
+    show_entity(entity);
+
     play_sound(&spawn_sound);
 }
 
 void kill_enemy(Entity* entity) {
-    if (entity->enemy->is_dead) return;
+    assert(!entity->enemy->is_dead);
 
     entity->enemy->respawn_timer = get_random_between(5.0f, 15.0f);
-    entity->enemy->is_dead = true;
-    
-    entity->is_visible = false;
+    entity->enemy->is_dead       = true;
 
-    printf("kill enemy\n");
     play_sound(&kill_01_sound);
+    hide_entity(entity);
 }
 
 void enemy_on_create(Entity* entity) {
     entity->enemy->respawn_timer = get_random_between(5.0f, 15.0f);
-    entity->has_collider = true;
 }
 
 void enemy_on_destroy(Entity* entity) {
@@ -149,9 +139,19 @@ void enemy_on_update(Entity* entity) {
 void enemy_on_collision(Entity* us, Entity* them) {
     switch (them->type) {
         case Entity_Type::ASTEROID: {
-            kill_enemy(us);
-            destroy_entity(them);
+            if (!us->enemy->is_dead) {
+                kill_enemy(us);
+                destroy_entity(them);
+            }
 
+            break;
+        }
+        case Entity_Type::PLAYER: {
+            if (!us->enemy->is_dead && !them->player->is_dead) {
+                kill_enemy(us);
+                kill_player(them);
+            }
+            
             break;
         }
     }

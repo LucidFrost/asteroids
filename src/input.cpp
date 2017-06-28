@@ -30,6 +30,7 @@ struct Input {
     Key mouse_right;
     Key key_escape;
     Key key_space;
+
     Key key_w;
     Key key_a;
     Key key_s;
@@ -43,6 +44,9 @@ struct Input {
     Key gamepad_b;
     Key gamepad_x;
     Key gamepad_y;
+
+    Key gamepad_left_trigger;
+    Key gamepad_right_trigger;
 
     float gamepad_left_x;
     float gamepad_left_y;
@@ -70,10 +74,11 @@ void update_input() {
     update_key(&input.mouse_right, GetAsyncKeyState(VK_RBUTTON));
     update_key(&input.key_escape,  GetAsyncKeyState(VK_ESCAPE));
     update_key(&input.key_space,   GetAsyncKeyState(VK_SPACE));
-    update_key(&input.key_w,       GetAsyncKeyState('W'));
-    update_key(&input.key_a,       GetAsyncKeyState('A'));
-    update_key(&input.key_s,       GetAsyncKeyState('S'));
-    update_key(&input.key_d,       GetAsyncKeyState('D'));
+
+    update_key(&input.key_w, GetAsyncKeyState('W'));
+    update_key(&input.key_a, GetAsyncKeyState('A'));
+    update_key(&input.key_s, GetAsyncKeyState('S'));
+    update_key(&input.key_d, GetAsyncKeyState('D'));
 
     POINT cursor_position;
     
@@ -93,6 +98,9 @@ void update_input() {
             update_key(&input.gamepad_b,     (gamepad->wButtons & XINPUT_GAMEPAD_B)     == XINPUT_GAMEPAD_B);
             update_key(&input.gamepad_x,     (gamepad->wButtons & XINPUT_GAMEPAD_X)     == XINPUT_GAMEPAD_X);
             update_key(&input.gamepad_y,     (gamepad->wButtons & XINPUT_GAMEPAD_Y)     == XINPUT_GAMEPAD_Y);
+
+            update_key(&input.gamepad_left_trigger,  gamepad->bLeftTrigger  > XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
+            update_key(&input.gamepad_right_trigger, gamepad->bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
 
             input.gamepad_left_x  = process_xinput_stick(gamepad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
             input.gamepad_left_y  = process_xinput_stick(gamepad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);

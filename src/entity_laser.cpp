@@ -8,8 +8,7 @@ void set_shooter(Entity* laser, Entity* shooter) {
 }
 
 void laser_on_create(Entity* entity) {
-    entity->has_collider    = true;
-    entity->collider_radius = 0.1f;
+    set_collider(entity, 0.1f);
 
     entity->sprite        = &laser_sprite;
     entity->sprite_size   = 0.75f;
@@ -21,6 +20,8 @@ void laser_on_create(Entity* entity) {
     else {
         play_sound(&laser_02_sound);
     }
+
+    show_entity(entity);
 }
 
 void laser_on_destroy(Entity* entity) {
@@ -73,8 +74,6 @@ void laser_on_collision(Entity* us, Entity* them) {
                 case Entity_Type::PLAYER: {
                     if (!them->player->is_dead) {
                         kill_player(them);
-                        kill_enemy(shooter);
-
                         destroy_entity(us);
                     }
                     

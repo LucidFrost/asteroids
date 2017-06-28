@@ -1,16 +1,16 @@
-const float WORLD_HEIGHT = 15.0f;
-const float WORLD_WIDTH  = WORLD_HEIGHT * ((float) WINDOW_WIDTH / (float) WINDOW_HEIGHT);
+const f32 WORLD_HEIGHT = 15.0f;
+const f32 WORLD_WIDTH  = WORLD_HEIGHT * ((f32) WINDOW_WIDTH / (f32) WINDOW_HEIGHT);
 
-const float WORLD_LEFT   = -WORLD_WIDTH  / 2.0f;
-const float WORLD_RIGHT  =  WORLD_WIDTH  / 2.0f;
-const float WORLD_TOP    =  WORLD_HEIGHT / 2.0f;
-const float WORLD_BOTTOM = -WORLD_HEIGHT / 2.0f;
+const f32 WORLD_LEFT   = -WORLD_WIDTH  / 2.0f;
+const f32 WORLD_RIGHT  =  WORLD_WIDTH  / 2.0f;
+const f32 WORLD_TOP    =  WORLD_HEIGHT / 2.0f;
+const f32 WORLD_BOTTOM = -WORLD_HEIGHT / 2.0f;
 
 Matrix4 world_projection;
 Matrix4 gui_projection;
 
 Playing_Sound* playing_music;
-float music_volume;
+f32 music_volume;
 
 bool is_showing_menu;
 
@@ -28,7 +28,7 @@ enum struct Entity_Type {
     ENEMY
 };
 
-char* to_string(Entity_Type entity_type) {
+utf8* to_string(Entity_Type entity_type) {
     #define case(type) case Entity_Type::type: return #type
 
     switch (entity_type) {
@@ -50,34 +50,38 @@ typedef void Entity_On_Update(Entity* entity);
 typedef void Entity_On_Collision(Entity* us, Entity* them);
 
 struct Entity {
-    int id = -1;
+    u32 id = 0;
     Entity_Type type = Entity_Type::NONE;
+
+    bool needs_to_be_destroyed = false;
     
-    Entity* parent  = NULL;
-    Entity* child   = NULL;
-    Entity* sibling = NULL;
+    Entity* parent  = null;
+    Entity* child   = null;
+    Entity* sibling = null;
 
     Matrix4 transform;
 
     Vector2 position;
-    float   orientation = 0.0f;
-    float   scale       = 1.0f;
+    f32 orientation = 0.0f;
+    f32 scale       = 1.0f;
 
-    bool  has_collider    = false;
-    float collider_radius = 0.0f;
+    bool has_collider = false;
+    f32 collider_radius = 0.0f;
 
-    Sprite* sprite        = NULL;
-    float   sprite_size   = 1.0f;
+    Sprite* sprite = null;
     Vector2 sprite_offset;
-    bool    is_visible    = true;
 
-    Entity_On_Create*    on_create    = NULL;
-    Entity_On_Destroy*   on_destroy   = NULL;
-    Entity_On_Update*    on_update    = NULL;
-    Entity_On_Collision* on_collision = NULL;
+    f32 sprite_size  = 1.0f;
+    i32 sprite_order = 0;
+    bool is_visible  = false;
+
+    Entity_On_Create*    on_create    = null;
+    Entity_On_Destroy*   on_destroy   = null;
+    Entity_On_Update*    on_update    = null;
+    Entity_On_Collision* on_collision = null;
 
     union {
-        void*     derived = NULL;
+        void*     derived = null;
         Player*   player;
         Laser*    laser;
         Asteroid* asteroid;
@@ -92,50 +96,31 @@ Entity* the_enemy;
 
 Entity* create_entity(Entity_Type type, Entity* parent = &root_entity);
 void    destroy_entity(Entity* entity);
-Entity* find_entity(int id);
+Entity* find_entity(u32 id);
+
+void show_entity(Entity* entity);
+void hide_entity(Entity* entity);
+
+void set_collider(Entity* entity, f32 radius);
 
 #include "entity_asteroid.cpp"
 #include "entity_player.cpp"
 #include "entity_enemy.cpp"
 #include "entity_laser.cpp"
 
-#define entity_storage(Type, type, count)   \
-    Type type##_buffer[count];              \
-    bool type##_buffer_mask[count]
+Bucket_Array<Entity,   32> entities;
+Bucket_Array<Player,   1>  players;
+Bucket_Array<Laser,    16> lasers;
+Bucket_Array<Asteroid, 16> asteroids;
+Bucket_Array<Enemy,    1>  enemies;
 
-entity_storage(Entity, entity, 512);
-entity_storage(Player, player, 1);
-entity_storage(Laser, laser, 32);
-entity_storage(Asteroid, asteroid, 32);
-entity_storage(Enemy, enemy, 1);
-
-#undef entity_storage
-
-int next_entity_id  = 0;
-int active_entities = 0;
+u32 next_entity_id;
 
 Entity* create_entity(Entity_Type type, Entity* parent) {
-    Entity* entity = NULL;
-    for (int i = 0; i < count_of(entity_buffer); i++) {
-        if (entity_buffer_mask[i]) continue;
-        entity_buffer_mask[i] = true;
+    Entity* entity = next(&entities);
 
-        entity = new(&entity_buffer[i]) Entity;
-        break;
-    }
-
-    assert(entity);
-
-    entity->id   = next_entity_id;
-    entity->type = type;
-
-    if (parent != &root_entity) {
-        int parent_index = (int) (parent - entity_buffer);
-
-        assert(parent_index < count_of(entity_buffer));
-        assert(entity_buffer_mask[parent_index]);
-    }
-
+    entity->id     = next_entity_id;
+    entity->type   = type;
     entity->parent = parent;
 
     if (entity->parent->child) {
@@ -150,22 +135,15 @@ Entity* create_entity(Entity_Type type, Entity* parent) {
         entity->parent->child = entity;
     }
 
-    #define case(TYPE, Type, type)                                  \
-        case Entity_Type::TYPE: {                                   \
-            entity->on_create    = type##_on_create;                \
-            entity->on_destroy   = type##_on_destroy;               \
-            entity->on_update    = type##_on_update;                \
-            entity->on_collision = type##_on_collision;             \
-                                                                    \
-            for (int i = 0; i < count_of(type##_buffer); i++) {     \
-                if (type##_buffer_mask[i]) continue;                \
-                type##_buffer_mask[i] = true;                       \
-                                                                    \
-                entity->type = new(&type##_buffer[i]) Type;         \
-                break;                                              \
-            }                                                       \
-                                                                    \
-            break;                                                  \
+    #define case(TYPE, Type, type, types)                   \
+        case Entity_Type::TYPE: {                           \
+            entity->on_create    = type##_on_create;        \
+            entity->on_destroy   = type##_on_destroy;       \
+            entity->on_update    = type##_on_update;        \
+            entity->on_collision = type##_on_collision;     \
+                                                            \
+            entity->type = next(&types);                    \
+            break;                                          \
         }
 
     switch (entity->type) {
@@ -173,10 +151,10 @@ Entity* create_entity(Entity_Type type, Entity* parent) {
             break;
         }
 
-        case(PLAYER,   Player,   player);
-        case(LASER,    Laser,    laser);
-        case(ASTEROID, Asteroid, asteroid);
-        case(ENEMY,    Enemy,    enemy);
+        case(PLAYER,   Player,   player,   players);
+        case(LASER,    Laser,    laser,    lasers);
+        case(ASTEROID, Asteroid, asteroid, asteroids);
+        case(ENEMY,    Enemy,    enemy,    enemies);
 
         default: {
             printf("Failed to create entity, unhandled entity type '%s' (%i) specified\n", to_string(entity->type), entity->type);
@@ -188,8 +166,7 @@ Entity* create_entity(Entity_Type type, Entity* parent) {
 
     #undef case
 
-    next_entity_id  += 1;
-    active_entities += 1;
+    next_entity_id += 1;
 
     if (entity->on_create) {
         entity->on_create(entity);
@@ -199,24 +176,18 @@ Entity* create_entity(Entity_Type type, Entity* parent) {
 }
 
 void destroy_entity(Entity* entity) {
-    int entity_index = (int) (entity - entity_buffer);
+    entity->needs_to_be_destroyed = true;
+}
 
-    assert(entity_index < count_of(entity_buffer));
-    assert(entity_buffer_mask[entity_index]);
-
+void actually_destroy_entity(Entity* entity) {
     if (entity->on_destroy) {
         entity->on_destroy(entity);
     }
 
-    #define case(TYPE, type)                             \
-        case Entity_Type::TYPE: {                                       \
-            int type##_index = (int) (entity->type - type##_buffer);    \
-                                                                        \
-            assert(type##_index < count_of(type##_buffer));             \
-            assert(type##_buffer_mask[type##_index]);                   \
-                                                                        \
-            type##_buffer_mask[type##_index] = false;                   \
-            break;                                                      \
+    #define case(TYPE, type, types)         \
+        case Entity_Type::TYPE: {           \
+            remove(&types, entity->type);   \
+            break;                          \
         }
 
     switch (entity->type) {
@@ -224,10 +195,10 @@ void destroy_entity(Entity* entity) {
             break;
         }
 
-        case(PLAYER,   player);
-        case(LASER,    laser);
-        case(ASTEROID, asteroid);
-        case(ENEMY,    enemy);
+        case(PLAYER,   player,   players);
+        case(LASER,    laser,    lasers);
+        case(ASTEROID, asteroid, asteroids);
+        case(ENEMY,    enemy,    enemies);
 
         default: {
             printf("Failed to destroy entity, unhandled entity type '%s' (%i) specified\n", to_string(entity->type), entity->type);
@@ -249,17 +220,16 @@ void destroy_entity(Entity* entity) {
         child->sibling = entity->sibling;
     }
 
-    entity_buffer_mask[entity_index] = false;
-    active_entities -= 1;
+    remove(&entities, entity);
 }
 
-Entity* find_entity(int id) {
-    Entity* entity = NULL;
-    for (int i = 0; i < count_of(entity_buffer); i++) {
-        if (!entity_buffer_mask[i])    continue;
-        if (entity_buffer[i].id != id) continue;
+Entity* find_entity(u32 id) {
+    Entity* entity = null;
+
+    for_each (Entity* it, &entities) {
+        if (it->id != id) continue;
         
-        entity = &entity_buffer[i];
+        entity = it;
         break;
     }
 
@@ -267,23 +237,21 @@ Entity* find_entity(int id) {
     return entity;
 }
 
-void init_game() {
-    world_projection = make_orthographic_matrix(WORLD_LEFT, WORLD_RIGHT, WORLD_TOP, WORLD_BOTTOM);
-    gui_projection   = make_orthographic_matrix(0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f);
+void show_entity(Entity* entity) {
+    assert(entity->sprite);
+    assert(!entity->is_visible);
 
-    the_player = create_entity(Entity_Type::PLAYER);
-    the_enemy  = create_entity(Entity_Type::ENEMY);
+    entity->is_visible = true;
+}
 
-    for (int i = 0; i < 4; i++) {
-        Entity* asteroid = create_entity(Entity_Type::ASTEROID);
-        set_asteroid_size(asteroid, Asteroid_Size::LARGE);
+void hide_entity(Entity* entity) {
+    assert(entity->is_visible);
+    entity->is_visible = false;
+}
 
-        asteroid->position = make_vector2(
-            get_random_between(WORLD_LEFT, WORLD_RIGHT), 
-            get_random_between(WORLD_BOTTOM, WORLD_TOP));
-    }
-
-    playing_music = play_sound(&music_sound, music_volume, true);
+void set_collider(Entity* entity, f32 radius) {
+    entity->collider_radius = radius;
+    entity->has_collider    = true;
 }
 
 void build_entity_hierarchy(Entity* entity) {
@@ -300,6 +268,45 @@ void build_entity_hierarchy(Entity* entity) {
         build_entity_hierarchy(child);
         child = child->sibling;
     }
+}
+
+Array<Entity*> merge_sort(Array<Entity*> entities) {
+    entities.allocator = &temp_allocator;
+
+    if (entities.count < 2) return entities;
+    u32 middle = entities.count / 2;
+    
+    Array<Entity*> left  = copy(&entities, 0, middle);
+    Array<Entity*> right = copy(&entities, middle, entities.count);
+
+    left  = merge_sort(left);
+    right = merge_sort(right);
+
+    Array<Entity*> merged;
+    merged.allocator = &temp_allocator;
+
+    while (left.count && right.count) {
+        if (left[0]->sprite_order <= right[0]->sprite_order) {
+            add(&merged, left[0]);
+            remove(&left, 0);
+        }
+        else {
+            add(&merged, right[0]);
+            remove(&right, 0);
+        }
+    }
+
+    while (left.count) {
+        add(&merged, left[0]);
+        remove(&left, 0);
+    }
+
+    while (right.count) {
+        add(&merged, right[0]);
+        remove(&right, 0);
+    }
+
+    return merged;
 }
 
 void draw_entity_hierarchy(Entity* entity, Vector2* layout) {
@@ -320,6 +327,25 @@ void draw_entity_hierarchy(Entity* entity, Vector2* layout) {
     layout->x -= 16.0f;
 }
 
+void init_game() {
+    world_projection = make_orthographic_matrix(WORLD_LEFT, WORLD_RIGHT, WORLD_TOP, WORLD_BOTTOM, -10.0f, 10.0f);
+    gui_projection   = make_orthographic_matrix(0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f);
+
+    the_player = create_entity(Entity_Type::PLAYER);
+    the_enemy  = create_entity(Entity_Type::ENEMY);
+
+    for (u32 i = 0; i < 4; i++) {
+        Entity* asteroid = create_entity(Entity_Type::ASTEROID);
+        set_asteroid_size(asteroid, Asteroid_Size::LARGE);
+
+        asteroid->position = make_vector2(
+            get_random_between(WORLD_LEFT, WORLD_RIGHT), 
+            get_random_between(WORLD_BOTTOM, WORLD_TOP));
+    }
+
+    playing_music = play_sound(&music_sound, music_volume, true);
+}
+
 void update_game() {
     music_volume = lerp(music_volume, 0.05f * time.delta, 0.15f);
     set_volume(playing_music, music_volume);
@@ -332,11 +358,7 @@ void update_game() {
         
     }
     else {
-        for (int i = 0; i < count_of(entity_buffer); i++) {
-            if (!entity_buffer_mask[i]) continue;
-
-            Entity* entity = &entity_buffer[i];
-
+        for_each (Entity* entity, &entities) {
             if (entity->on_update) {
                 entity->on_update(entity);
             }
@@ -347,24 +369,23 @@ void update_game() {
             if (entity->position.y > WORLD_TOP)    entity->position.y = WORLD_BOTTOM;
         }
 
-        for (int i = 0; i < count_of(entity_buffer); i++) {
-            if (!entity_buffer_mask[i]) continue;
-            
-            Entity* us = &entity_buffer[i];
+        for_each (Entity* us, &entities) {
             if (!us->has_collider) continue;
 
-            for (int j = 0; j < count_of(entity_buffer); j++) {
-                if (!entity_buffer_mask[j]) continue;
-                
-                Entity* them = &entity_buffer[j];
+            for_each (Entity* them, &entities) {
+                if (us == them)          continue;
                 if (!them->has_collider) continue;
-                if (us == them) continue;
 
-                float distance = get_length(them->position - us->position);
+                f32 distance = get_length(them->position - us->position);
                 if (distance <= us->collider_radius + them->collider_radius) {
                     us->on_collision(us, them);
                 }
             }
+        }
+
+        for_each (Entity* entity, &entities) {
+            if (!entity->needs_to_be_destroyed) continue;
+            actually_destroy_entity(entity);
         }
 
         build_entity_hierarchy(&root_entity);
@@ -375,8 +396,8 @@ void update_game() {
 
     set_projection(&world_projection);
 
-    for (int x = 0; x < 6; x++) {
-        for (int y = 0; y < 3; y++) {
+    for (u32 x = 0; x < 6; x++) {
+        for (u32 y = 0; y < 3; y++) {
             Vector2 position = make_vector2(WORLD_LEFT, WORLD_BOTTOM);
             position += make_vector2(x, y) * 5.0f;
 
@@ -387,45 +408,30 @@ void update_game() {
         }
     }
 
-    for (int i = 0; i < count_of(entity_buffer); i++) {
-        if (!entity_buffer_mask[i]) continue;
+    Array<Entity*> visible_entities;
+    visible_entities.allocator = &temp_allocator;
 
-        Entity* entity = &entity_buffer[i];
-        if (entity->sprite && entity->is_visible) {
-            Matrix4 sprite_transform = entity->transform * make_transform_matrix(entity->sprite_offset);
-            set_transform(&sprite_transform);
+    for_each (Entity* entity, &entities) {
+        if (!entity->sprite)     continue;
+        if (!entity->is_visible) continue;
 
-            draw_sprite(entity->sprite, entity->sprite_size * entity->sprite->aspect, entity->sprite_size);
+        add(&visible_entities, entity);
+    }
+    
+    Array<Entity*> sorted_entities = merge_sort(visible_entities);
 
-            if (entity->has_collider) {
-                set_transform(&entity->transform);
-                draw_circle(entity->collider_radius, 0.0f, 1.0f, 0.0f, 1.0f, false);
-            }
+    for_each (Entity** it, &sorted_entities) {
+        Entity* entity = *it;
 
-            // draw_entity_at(entity, entity->position);
+        Matrix4 sprite_transform = entity->transform * make_transform_matrix(entity->sprite_offset);
+        set_transform(&sprite_transform);
 
-            // float bounds = entity->sprite->width > entity->sprite->height ? entity->sprite->width : entity->sprite->height;
+        draw_sprite(entity->sprite, entity->sprite_size * entity->sprite->aspect, entity->sprite_size);
 
-            // if (entity->position.x - WORLD_LEFT <= bounds) {
-            //     float x = WORLD_RIGHT + (entity->position.x - WORLD_LEFT);
-            //     draw_entity_at(entity, make_vector2(x, entity->position.y));
-            // }
-
-            // if (WORLD_RIGHT - entity->position.x <= bounds) {
-            //     float x = WORLD_LEFT - (WORLD_RIGHT - entity->position.x);
-            //     draw_entity_at(entity, make_vector2(x, entity->position.y));
-            // }
-
-            // if (entity->position.y - WORLD_BOTTOM <= bounds) {
-            //     float y = WORLD_TOP + (entity->position.y - WORLD_BOTTOM);
-            //     draw_entity_at(entity, make_vector2(entity->position.x, y));
-            // }
-
-            // if (WORLD_TOP - entity->position.y <= bounds) {
-            //     float y = WORLD_BOTTOM - (WORLD_TOP - entity->position.y);
-            //     draw_entity_at(entity, make_vector2(entity->position.x, y));
-            // }
-        }
+        // if (entity->has_collider) {
+        //     set_transform(&entity->transform);
+        //     draw_circle(entity->collider_radius, 0.0f, 1.0f, 0.0f, 1.0f, false);
+        // }
     }
 
     set_projection(&gui_projection);
@@ -437,41 +443,17 @@ void update_game() {
         draw_rectangle(WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 0.0f, 0.0f, 0.25f, false);
     }
 
-    Vector2 layout = make_vector2(16.0f, WINDOW_HEIGHT - font_height - 16.0f);
+    begin_layout(16.0f, WINDOW_HEIGHT - font_height - 16.0f); {
+        draw_text("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta));
+        
+        draw_text("%u (%u), %u (%u)", 
+            heap_memory_allocated, 
+            heap_memory_high_water_mark,
+            temp_memory_allocated,
+            temp_memory_high_water_mark);
 
-    Matrix4 transform = make_transform_matrix(layout);
-    set_transform(&transform);
-    
-    draw_text("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (int) (1.0f / time.delta));
-    layout.y -= font_vertical_advance;
-
-    transform = make_transform_matrix(layout);
-    set_transform(&transform);
-
-    draw_text("Player Score: %i", the_player->player->score);
-    layout.y -= font_vertical_advance;
-
-    transform = make_transform_matrix(layout);
-    set_transform(&transform);
-
-    draw_text("Player Lives: %i", the_player->player->lives);
-    // layout.y -= font_vertical_advance;
-
-    // transform = make_transform_matrix(layout);
-    // set_transform(&transform);
-
-    // draw_text("Active Entities: %i", active_entities);
-    // layout.y -= font_vertical_advance;
-    
-    // transform = make_transform_matrix(layout);
-    // set_transform(&transform);
-
-    // draw_text("Entity Hierarchy:");
-    // layout.y -= font_vertical_advance;
-
-    // layout.x += 16.0f;
-
-    // draw_entity_hierarchy(&root_entity, &layout);
-
-    // layout.x -= 16.0f;
+        draw_text("Player Score: %i", the_player->player->score);
+        draw_text("Player Lives: %i", the_player->player->lives);
+    }
+    end_layout();
 }

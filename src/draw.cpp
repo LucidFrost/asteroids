@@ -137,7 +137,30 @@ void draw_circle(float radius, float r, float g, float b, float a, bool fill = t
     glEnd();
 }
 
+Vector2 layout_position;
+bool is_using_layout;
+
+void begin_layout(float x, float y) {
+    assert(!is_using_layout);
+
+    layout_position = make_vector2(x, y);
+    is_using_layout = true;
+}
+
+void end_layout() {
+    assert(is_using_layout);
+    is_using_layout = false;
+}
+
 void draw_text(char* string, ...) {
+    if (is_using_layout) {
+
+        Matrix4 transform = make_transform_matrix(layout_position);
+        set_transform(&transform);
+
+        layout_position.y -= font_vertical_advance;
+    }
+
     va_list args;
     va_start(args, string);
 
