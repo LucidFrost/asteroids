@@ -204,8 +204,6 @@ Bucket_Locator add(Bucket_Array<type, size>* bucket_array, type element) {
     }
 
     if (array_index == -1) {
-        printf("Allocating bucket...\n");
-
         push_allocator(bucket_array->allocator); {
             array_index  = add(&bucket_array->buckets, new Bucket<type, size>);
             bucket_index = 0;

@@ -95,8 +95,6 @@ u32 heap_memory_allocated;
 u32 heap_memory_high_water_mark;
 
 void* heap_alloc(u32 size) {
-    printf("Heap allocating...\n");
-
     heap_memory_allocated += size;
     
     if (heap_memory_allocated > heap_memory_high_water_mark) {
