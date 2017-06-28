@@ -3,56 +3,37 @@
 // can the enemy itself collide with the player?
 // increase accuracy of small ship as score increases
 
-void set_shooter(Entity* laser, Entity* shooter);
+void spawn_enemy(Enemy* enemy) {
+    assert(enemy->is_dead);
 
-enum struct Enemy_Mode {
-    NONE,
-    BIG,
-    SMALL
-};
-
-struct Enemy {
-    Enemy_Mode mode = Enemy_Mode::NONE;
-    int score = 0;
-
-    float respawn_timer = 0.0f;
-    bool is_dead = true;
-
-    float fire_rate = 0.0f;
-    float next_fire = 0.0f;
-
-    Vector2 velocity;
-};
-
-void spawn_enemy(Entity* entity) {
-    assert(entity->enemy->is_dead);
-
-    if (the_player->player->score >= 40000) {
-        entity->enemy->mode = Enemy_Mode::SMALL;
+    if (the_player->score >= 40000) {
+        enemy->mode = Enemy_Mode::SMALL;
     }
     else {
         if (get_random_chance(4)) {
-            entity->enemy->mode = Enemy_Mode::SMALL;
+            enemy->mode = Enemy_Mode::SMALL;
         }
         else {
-            entity->enemy->mode = Enemy_Mode::BIG;
+            enemy->mode = Enemy_Mode::BIG;
         }
     }
 
-    switch (entity->enemy->mode) {
+    switch (enemy->mode) {
         case Enemy_Mode::SMALL: {
-            entity->sprite           = &enemy_small_sprite;
-            entity->sprite_size      = 0.75f;
-            entity->enemy->score     = 1000;
-            entity->enemy->fire_rate = 0.5f;
+            enemy->entity->sprite      = &enemy_small_sprite;
+            enemy->entity->sprite_size = 0.75f;
+
+            enemy->score     = 1000;
+            enemy->fire_rate = 0.5f;
 
             break;
         }
         case Enemy_Mode::BIG: {
-            entity->sprite           = &enemy_big_sprite;
-            entity->sprite_size      = 1.5f;
-            entity->enemy->score     = 200;
-            entity->enemy->fire_rate = 1.5f;
+            enemy->entity->sprite      = &enemy_big_sprite;
+            enemy->entity->sprite_size = 1.5f;
+            
+            enemy->score     = 200;
+            enemy->fire_rate = 1.5f;
 
             break;
         }
@@ -63,58 +44,60 @@ void spawn_enemy(Entity* entity) {
     }
 
     if (get_random_chance(2)) {
-        entity->position = make_vector2(WORLD_RIGHT, get_random_between(WORLD_BOTTOM, WORLD_TOP));
-        entity->enemy->velocity = make_vector2(-3.0f, 0.0f);
+        enemy->entity->position = make_vector2(WORLD_RIGHT, get_random_between(WORLD_BOTTOM, WORLD_TOP));
+        enemy->velocity = make_vector2(-3.0f, 0.0f);
     }
     else {
-        entity->position = make_vector2(WORLD_LEFT, get_random_between(WORLD_BOTTOM, WORLD_TOP));
-        entity->enemy->velocity = make_vector2(3.0f, 0.0f);
+        enemy->entity->position = make_vector2(WORLD_LEFT, get_random_between(WORLD_BOTTOM, WORLD_TOP));
+        enemy->velocity = make_vector2(3.0f, 0.0f);
     }
 
-    entity->enemy->next_fire = entity->enemy->fire_rate;
-    entity->enemy->is_dead   = false;
+    enemy->next_fire = enemy->fire_rate;
+    enemy->is_dead   = false;
 
-    set_collider(entity, entity->sprite_size / 2.0f);
-    show_entity(entity);
+    enemy->entity->is_visible      = true;
+    enemy->entity->has_collider    = true;
+    enemy->entity->collider_radius = enemy->entity->sprite_size / 2.0f;
 
     play_sound(&spawn_sound);
 }
 
-void kill_enemy(Entity* entity) {
-    assert(!entity->enemy->is_dead);
+void kill_enemy(Enemy* enemy) {
+    assert(!enemy->is_dead);
 
-    entity->enemy->respawn_timer = get_random_between(5.0f, 15.0f);
-    entity->enemy->is_dead       = true;
+    enemy->entity->is_visible = false;
+
+    enemy->respawn_timer = get_random_between(5.0f, 15.0f);
+    enemy->is_dead       = true;
 
     play_sound(&kill_01_sound);
-    hide_entity(entity);
 }
 
-void enemy_on_create(Entity* entity) {
-    entity->enemy->respawn_timer = get_random_between(5.0f, 15.0f);
+void on_create(Enemy* enemy) {
+    enemy->respawn_timer = get_random_between(5.0f, 15.0f);
 }
 
-void enemy_on_destroy(Entity* entity) {
+void on_destroy(Enemy* enemy) {
 
 }
 
-void enemy_on_update(Entity* entity) {
-    if (entity->enemy->is_dead) {
-        if ((entity->enemy->respawn_timer -= time.delta) <= 0.0f) {
-            spawn_enemy(entity);
+void on_update(Enemy* enemy) {
+    if (enemy->is_dead) {
+        if ((enemy->respawn_timer -= time.delta) <= 0.0f) {
+            spawn_enemy(enemy);
         }
     }
     else {
-        entity->position    += entity->enemy->velocity * time.delta;
-        entity->orientation -= 100.0f * time.delta;
+        enemy->entity->position    += enemy->velocity * time.delta;
+        enemy->entity->orientation -= 100.0f * time.delta;
 
-        if ((entity->enemy->next_fire -= time.delta) <= 0.0f && !the_player->player->is_dead) {
-            entity->enemy->next_fire = entity->enemy->fire_rate;
+        if ((enemy->next_fire -= time.delta) <= 0.0f && !the_player->is_dead) {
+            enemy->next_fire = enemy->fire_rate;
 
-            float fire_angle = 0.0f;
-            switch (entity->enemy->mode) {
+            f32 fire_angle = 0.0f;
+            switch (enemy->mode) {
                 case Enemy_Mode::SMALL: {
-                    fire_angle = get_angle(normalize(the_player->position - entity->position)) + get_random_between(-25.0f, 25.0f);
+                    fire_angle = get_angle(normalize(the_player->entity->position - enemy->entity->position)) + get_random_between(-25.0f, 25.0f);
                     break;
                 }
                 case Enemy_Mode::BIG: {
@@ -127,29 +110,29 @@ void enemy_on_update(Entity* entity) {
                 }
             }
 
-            Entity* laser = create_entity(Entity_Type::LASER);
-            set_shooter(laser, entity);
+            Laser* laser = create_entity(Entity_Type::LASER)->laser;
+            laser->shooter = enemy->entity;
 
-            laser->position    = entity->position + (get_direction(fire_angle) * entity->sprite_size);
-            laser->orientation = fire_angle;
+            laser->entity->position    = enemy->entity->position + (get_direction(fire_angle) * enemy->entity->sprite_size);
+            laser->entity->orientation = fire_angle;
         }
     }
 }
 
-void enemy_on_collision(Entity* us, Entity* them) {
+void on_collision(Enemy* enemy, Entity* them) {
     switch (them->type) {
         case Entity_Type::ASTEROID: {
-            if (!us->enemy->is_dead) {
-                kill_enemy(us);
+            if (!enemy->is_dead) {
+                kill_enemy(enemy);
                 destroy_entity(them);
             }
 
             break;
         }
         case Entity_Type::PLAYER: {
-            if (!us->enemy->is_dead && !them->player->is_dead) {
-                kill_enemy(us);
-                kill_player(them);
+            if (!enemy->is_dead && !them->player->is_dead) {
+                kill_enemy(enemy);
+                kill_player(them->player);
             }
             
             break;

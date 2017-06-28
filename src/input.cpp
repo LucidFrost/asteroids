@@ -36,8 +36,8 @@ struct Input {
     Key key_s;
     Key key_d;
 
-    int mouse_x = 0;
-    int mouse_y = 0;
+    u32 mouse_x = 0;
+    u32 mouse_y = 0;
 
     Key gamepad_start;
     Key gamepad_a;
@@ -48,22 +48,22 @@ struct Input {
     Key gamepad_left_trigger;
     Key gamepad_right_trigger;
 
-    float gamepad_left_x;
-    float gamepad_left_y;
-    float gamepad_right_x;
-    float gamepad_right_y;
+    f32 gamepad_left_x;
+    f32 gamepad_left_y;
+    f32 gamepad_right_x;
+    f32 gamepad_right_y;
 };
 
 Input input;
 
-float process_xinput_stick(i16 value, i16 dead_zone) {
-    float result = 0.0f;
+f32 process_xinput_stick(i16 value, i16 dead_zone) {
+    f32 result = 0.0f;
 
     if (value < -dead_zone) {
-        result = (float) (value + dead_zone) / (float) (-INT16_MIN - dead_zone);
+        result = (f32) (value + dead_zone) / (f32) (-INT16_MIN - dead_zone);
     }
     else if (value > dead_zone) {
-        result = (float) (value - dead_zone) / (float) (INT16_MAX - dead_zone);
+        result = (f32) (value - dead_zone) / (f32) (INT16_MAX - dead_zone);
     }
 
     return result;

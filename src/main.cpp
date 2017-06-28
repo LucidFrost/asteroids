@@ -7,8 +7,10 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 
-#include <assert.h>
 #include <stdint.h>
+
+// @todo: drop assert, stdlib (random), and stdio (file/console io)
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -31,6 +33,8 @@ typedef char32_t utf32;
 #define size_of(type)           ((u32) sizeof(type))
 #define count_of(array)         (size_of(array) / size_of(array[0]))
 #define offset_of(type, member) ((u32) ((type*) null)->member)
+
+#define invalid_default_case() assert(!"Invalid default case")
 
 typedef void* Alloc(u32 size);
 typedef void  Dealloc(void* memory);

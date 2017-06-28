@@ -1,18 +1,11 @@
-struct Laser {
-    int   shooter_id = -1;
-    float lifetime   = 1.0f;
-};
+void on_create(Laser* laser) {
+    laser->entity->has_collider = true;
+    laser->entity->collider_radius = 0.1f;
 
-void set_shooter(Entity* laser, Entity* shooter) {
-    laser->laser->shooter_id = shooter->id;
-}
-
-void laser_on_create(Entity* entity) {
-    set_collider(entity, 0.1f);
-
-    entity->sprite        = &laser_sprite;
-    entity->sprite_size   = 0.75f;
-    entity->sprite_offset = make_vector2(0.0f, -0.3f);
+    laser->entity->sprite        = &laser_sprite;
+    laser->entity->sprite_size   = 0.75f;
+    laser->entity->sprite_offset = make_vector2(0.0f, -0.3f);
+    laser->entity->is_visible    = true;
 
     if (get_random_chance(2)) {
         play_sound(&laser_01_sound);
@@ -20,41 +13,38 @@ void laser_on_create(Entity* entity) {
     else {
         play_sound(&laser_02_sound);
     }
-
-    show_entity(entity);
 }
 
-void laser_on_destroy(Entity* entity) {
+void on_destroy(Laser* laser) {
 
 }
 
-void laser_on_update(Entity* entity) {
-    if ((entity->laser->lifetime -= time.delta) <= 0.0f) {
-        destroy_entity(entity);
+void on_update(Laser* laser) {
+    if ((laser->lifetime -= time.delta) <= 0.0f) {
+        destroy_entity(laser->entity);
     }
     else {
-        entity->position += get_direction(entity->orientation) * 15.0f * time.delta;
+        laser->entity->position += get_direction(laser->entity->orientation) * 15.0f * time.delta;
     }
 }
 
-void laser_on_collision(Entity* us, Entity* them) {
-    Entity* shooter = find_entity(us->laser->shooter_id);
-    switch (shooter->type) {
+void on_collision(Laser* laser, Entity* them) {
+    switch (laser->shooter->type) {
         case Entity_Type::PLAYER: {
             switch (them->type) {
                 case Entity_Type::ASTEROID: {
-                    add_score(shooter, them->asteroid->score);
+                    add_score(laser->shooter->player, them->asteroid->score);
                     destroy_entity(them);
 
-                    destroy_entity(us);
+                    destroy_entity(laser->entity);
                     break;
                 }
                 case Entity_Type::ENEMY: {
                     if (!them->enemy->is_dead) {
-                        add_score(shooter, them->enemy->score);
-                        kill_enemy(them);
+                        add_score(laser->shooter->player, them->enemy->score);
+                        kill_enemy(them->enemy);
 
-                        destroy_entity(us);
+                        destroy_entity(laser->entity);
                     }
 
                     break;
@@ -67,14 +57,14 @@ void laser_on_collision(Entity* us, Entity* them) {
             switch (them->type) {
                 case Entity_Type::ASTEROID: {
                     destroy_entity(them);
-                    destroy_entity(us);
+                    destroy_entity(laser->entity);
 
                     break;
                 }
                 case Entity_Type::PLAYER: {
                     if (!them->player->is_dead) {
-                        kill_player(them);
-                        destroy_entity(us);
+                        kill_player(them->player);
+                        destroy_entity(laser->entity);
                     }
                     
                     break;

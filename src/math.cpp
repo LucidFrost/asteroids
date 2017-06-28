@@ -1,29 +1,29 @@
 #include <math.h>
 
-const float PI = 3.14159265358979323846f;
+const f32 PI = 3.14159265358979323846f;
 
-float square(float x) {
+f32 square(f32 x) {
     return x * x;
 }
 
-float to_radians(float degrees) {
+f32 to_radians(f32 degrees) {
     return degrees * PI / 180.0f;
 }
 
-float to_degrees(float radians) {
+f32 to_degrees(f32 radians) {
     return radians * 180.0f / PI;
 }
 
-float lerp(float from, float step, float to) {
+f32 lerp(f32 from, f32 step, f32 to) {
     return ((1.0f - step) * from) + (step * to);
 }
 
 struct Vector2 {
-    float x = 0.0f;
-    float y = 0.0f;
+    f32 x = 0.0f;
+    f32 y = 0.0f;
 };
 
-Vector2 make_vector2(float x, float y) {
+Vector2 make_vector2(f32 x, f32 y) {
     Vector2 vector2;
 
     vector2.x = x;
@@ -52,28 +52,28 @@ Vector2& operator -=(Vector2& a, Vector2 b) {
     return a = a - b;
 }
 
-Vector2 operator *(Vector2 a, float b) {
+Vector2 operator *(Vector2 a, f32 b) {
     return make_vector2(a.x * b, a.y * b);
 }
 
-Vector2& operator *=(Vector2& a, float b) {
+Vector2& operator *=(Vector2& a, f32 b) {
     return a = a * b;
 }
 
-Vector2 operator *(float a, Vector2 b) {
+Vector2 operator *(f32 a, Vector2 b) {
     return b * a;
 }
 
-float get_length_squared(Vector2 a) {
+f32 get_length_squared(Vector2 a) {
     return square(a.x) + square(a.y);
 }
 
-float get_length(Vector2 a) {
+f32 get_length(Vector2 a) {
     return sqrtf(get_length_squared(a));
 }
 
 Vector2 normalize(Vector2 a) {
-    float length = get_length(a);
+    f32 length = get_length(a);
     if (!length) {
         return make_vector2();
     }
@@ -81,42 +81,42 @@ Vector2 normalize(Vector2 a) {
     return make_vector2(a.x / length, a.y / length);
 }
 
-Vector2 lerp(Vector2 from, float step, Vector2 to) {
+Vector2 lerp(Vector2 from, f32 step, Vector2 to) {
     return ((1.0f - step) * from) + (step * to);
 }
 
-Vector2 move_towards(Vector2 from, float step, Vector2 to) {
+Vector2 move_towards(Vector2 from, f32 step, Vector2 to) {
     return from + (normalize(to - from) * step);
 }
 
-Vector2 get_direction(float angle) {
-    float x = -sinf(to_radians(angle));
-    float y =  cosf(to_radians(angle));
+Vector2 get_direction(f32 angle) {
+    f32 x = -sinf(to_radians(angle));
+    f32 y =  cosf(to_radians(angle));
 
     return make_vector2(x, y);
 }
 
-float get_angle(Vector2 direction) {
+f32 get_angle(Vector2 direction) {
     return to_degrees(atan2f(direction.y, direction.x)) - 90.0f;
 }
 
 struct Matrix4 {
-    float _11 = 0.0f;
-    float _12 = 0.0f;
-    float _13 = 0.0f;
-    float _14 = 0.0f;
-    float _21 = 0.0f;
-    float _22 = 0.0f;
-    float _23 = 0.0f;
-    float _24 = 0.0f;
-    float _31 = 0.0f;
-    float _32 = 0.0f;
-    float _33 = 0.0f;
-    float _34 = 0.0f;
-    float _41 = 0.0f;
-    float _42 = 0.0f;
-    float _43 = 0.0f;
-    float _44 = 0.0f;
+    f32 _11 = 0.0f;
+    f32 _12 = 0.0f;
+    f32 _13 = 0.0f;
+    f32 _14 = 0.0f;
+    f32 _21 = 0.0f;
+    f32 _22 = 0.0f;
+    f32 _23 = 0.0f;
+    f32 _24 = 0.0f;
+    f32 _31 = 0.0f;
+    f32 _32 = 0.0f;
+    f32 _33 = 0.0f;
+    f32 _34 = 0.0f;
+    f32 _41 = 0.0f;
+    f32 _42 = 0.0f;
+    f32 _43 = 0.0f;
+    f32 _44 = 0.0f;
 };
 
 Matrix4 make_identity_matrix() {
@@ -157,13 +157,13 @@ Matrix4 operator *(Matrix4 a, Matrix4 b) {
 }
 
 Vector2 operator *(Matrix4 matrix, Vector2 vector) {
-    float x = (matrix._11 * vector.x) + (matrix._21 * vector.y) + matrix._31 + matrix._41;
-    float y = (matrix._12 * vector.x) + (matrix._22 * vector.y) + matrix._32 + matrix._42;
+    f32 x = (matrix._11 * vector.x) + (matrix._21 * vector.y) + matrix._31 + matrix._41;
+    f32 y = (matrix._12 * vector.x) + (matrix._22 * vector.y) + matrix._32 + matrix._42;
 
     return make_vector2(x, y);
 }
 
-Matrix4 make_orthographic_matrix(float left, float right, float top, float bottom, float near_plane = -1.0f, float far_plane = 1.0f) {
+Matrix4 make_orthographic_matrix(f32 left, f32 right, f32 top, f32 bottom, f32 near_plane = -1.0f, f32 far_plane = 1.0f) {
     Matrix4 matrix = make_identity_matrix();
 
     matrix._11 =  2.0f / (right - left);
@@ -177,7 +177,7 @@ Matrix4 make_orthographic_matrix(float left, float right, float top, float botto
     return matrix;
 }
 
-Matrix4 make_transform_matrix(Vector2 position, float orientation = 0.0f, float scale = 1.0f) {
+Matrix4 make_transform_matrix(Vector2 position, f32 orientation = 0.0f, f32 scale = 1.0f) {
     Matrix4 translation = make_identity_matrix();
     Matrix4 rotation    = make_identity_matrix();
     Matrix4 scalar      = make_identity_matrix();
@@ -185,8 +185,8 @@ Matrix4 make_transform_matrix(Vector2 position, float orientation = 0.0f, float 
     translation._41 = position.x;
     translation._42 = position.y;
 
-    float s = sinf(to_radians(orientation));
-    float c = cosf(to_radians(orientation));
+    f32 s = sinf(to_radians(orientation));
+    f32 c = cosf(to_radians(orientation));
 
     rotation._11 =  c;
     rotation._21 = -s;
@@ -331,7 +331,7 @@ Matrix4 make_inverse_matrix(Matrix4 matrix) {
          matrix._31 * matrix._12 * matrix._23 - 
          matrix._31 * matrix._13 * matrix._22;
 
-    float determinant = 
+    f32 determinant = 
          matrix._11 * inverse._11 + 
          matrix._12 * inverse._21 + 
          matrix._13 * inverse._31 + 

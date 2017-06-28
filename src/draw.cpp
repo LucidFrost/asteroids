@@ -7,8 +7,28 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "../lib/stb_truetype.h"
 
-float font_height;
-float font_vertical_advance;
+// struct Font {
+//     utf8* file_name = null;
+//     void* tff_data  = null;
+
+//     stbtt_fontinfo info;
+// };
+
+// Font load_font(utf8* file_name) {
+//     Font font;
+//     font.file_name = file_name;
+
+//     font.ttf_data = read_entire_file(font.file_name);
+
+
+//     printf("Loaded font '%s'\n", font.file_name);
+//     return font;
+// }
+
+
+
+f32 font_height;
+f32 font_vertical_advance;
 
 stbtt_bakedchar font_glyphs[96];
 GLuint          font_texture;
@@ -16,18 +36,18 @@ GLuint          font_texture;
 struct Sprite {
     GLuint texture = 0;
 
-    int   width  = 0;
-    int   height = 0;
-    float aspect = 0.0f;
+    u32 width  = 0;
+    u32 height = 0;
+    f32 aspect = 0.0f;
 };
 
-Sprite load_sprite(char* file_name) {
+Sprite load_sprite(utf8* file_name) {
     Sprite sprite;
 
-    uint8_t* image = stbi_load(file_name, &sprite.width, &sprite.height, NULL, 4);
+    u8* image = stbi_load(file_name, (i32*) &sprite.width, (i32*) &sprite.height, null, 4);
     assert(image);
 
-    sprite.aspect = (float) sprite.width / (float) sprite.height;
+    sprite.aspect = (f32) sprite.width / (f32) sprite.height;
 
     glGenTextures(1, &sprite.texture);
     glBindTexture(GL_TEXTURE_2D, sprite.texture);
@@ -51,6 +71,7 @@ Sprite asteroid_medium_sprite;
 Sprite asteroid_large_sprite;
 Sprite enemy_big_sprite;
 Sprite enemy_small_sprite;
+Sprite player_life_sprite;
 
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
@@ -64,9 +85,9 @@ void init_draw() {
     stbtt_fontinfo font_info;
     stbtt_InitFont(&font_info, (uint8_t*) ttf_file, 0);
 
-    float font_scale = stbtt_ScaleForPixelHeight(&font_info, 18.0f);
+    f32 font_scale = stbtt_ScaleForPixelHeight(&font_info, 18.0f);
 
-    int ascent, descent, line_gap;
+    i32 ascent, descent, line_gap;
     stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);
 
     font_height = (ascent - descent) * font_scale;
@@ -93,24 +114,25 @@ void init_draw() {
     asteroid_large_sprite  = load_sprite("data/sprites/asteroid_large.png");
     enemy_big_sprite       = load_sprite("data/sprites/enemy_big.png");
     enemy_small_sprite     = load_sprite("data/sprites/enemy_small.png");
+    player_life_sprite     = load_sprite("data/sprites/player_life.png");
 }
 
 void set_projection(Matrix4* projection) {
     glMatrixMode(GL_PROJECTION);
-    glLoadMatrixf((float*) projection);
+    glLoadMatrixf((f32*) projection);
 }
 
 void set_transform(Matrix4* transform) {
     glMatrixMode(GL_MODELVIEW);
-    glLoadMatrixf((float*) transform);
+    glLoadMatrixf((f32*) transform);
 }
 
-void draw_rectangle(float width, float height, float r, float g, float b, float a, bool center = true, bool fill = true) {
+void draw_rectangle(f32 width, f32 height, f32 r, f32 g, f32 b, f32 a, bool center = true, bool fill = true) {
     glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
     glColor4f(r, g, b, a);
 
-    float x = 0.0f;
-    float y = 0.0f;
+    f32 x = 0.0f;
+    f32 y = 0.0f;
 
     if (center) {
         x -= width  / 2.0f;
@@ -125,12 +147,12 @@ void draw_rectangle(float width, float height, float r, float g, float b, float 
     glEnd();
 }
 
-void draw_circle(float radius, float r, float g, float b, float a, bool fill = true) {
+void draw_circle(f32 radius, f32 r, f32 g, f32 b, f32 a, bool fill = true) {
     glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
     glColor4f(r, g, b, a);
 
-    for (int i = 0; i < 360; i++) {
-        float theta = to_radians((float) i);
+    for (u32 i = 0; i < 360; i++) {
+        f32 theta = to_radians((f32) i);
         glVertex2f(cosf(theta) * radius, sinf(theta) * radius);
     }
 
@@ -140,7 +162,7 @@ void draw_circle(float radius, float r, float g, float b, float a, bool fill = t
 Vector2 layout_position;
 bool is_using_layout;
 
-void begin_layout(float x, float y) {
+void begin_layout(f32 x, f32 y) {
     assert(!is_using_layout);
 
     layout_position = make_vector2(x, y);
@@ -152,7 +174,7 @@ void end_layout() {
     is_using_layout = false;
 }
 
-void draw_text(char* string, ...) {
+void draw_text(utf8* string, ...) {
     if (is_using_layout) {
 
         Matrix4 transform = make_transform_matrix(layout_position);
@@ -172,8 +194,8 @@ void draw_text(char* string, ...) {
 
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-    float offset_x = 0.0f;
-    float offset_y = 0.0f;
+    f32 offset_x = 0.0f;
+    f32 offset_y = 0.0f;
 
     while (*string) {
         if (32 <= *string && *string < 128) {
@@ -200,14 +222,14 @@ void draw_text(char* string, ...) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void draw_sprite(Sprite* sprite, float width, float height, bool center = true) {
+void draw_sprite(Sprite* sprite, f32 width, f32 height, bool center = true) {
     glBindTexture(GL_TEXTURE_2D, sprite->texture);
     glBegin(GL_QUADS);
 
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-    float x = 0.0f;
-    float y = 0.0f;
+    f32 x = 0.0f;
+    f32 y = 0.0f;
 
     if (center) {
         x -= width  / 2.0f;
