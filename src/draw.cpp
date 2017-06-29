@@ -1,11 +1,32 @@
 #include <gl/gl.h>
 #pragma comment(lib, "opengl32.lib")
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "../lib/stb_image.h"
+#pragma warning(push)
+    #pragma warning(disable: 4244)
+    #pragma warning(disable: 4456)
+    #pragma warning(disable: 4459)
+    #pragma warning(disable: 4505)
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "../lib/stb_truetype.h"
+    #define STB_IMAGE_IMPLEMENTATION
+    #define STBI_ONLY_PNG
+
+    #define STBI_MALLOC(sz)        heap_alloc((u32) (sz))
+    #define STBI_REALLOC(p, newsz) heap_realloc(p, (u32) (newsz))
+    #define STBI_FREE(p)           heap_dealloc(p)
+
+    #define STBI_ASSERT(x) assert(x)
+
+    #include "../lib/stb_image.h"
+
+    #define STB_TRUETYPE_IMPLEMENTATION
+
+    #define STBTT_malloc(x, u) ((void) (u), heap_alloc((u32) (x)))
+    #define STBTT_free(x, u)   ((void) (u), heap_dealloc(x))
+
+    #define STBTT_assert(x) assert(x)
+
+    #include "../lib/stb_truetype.h"
+#pragma warning(pop)
 
 void set_projection(Matrix4* projection) {
     glMatrixMode(GL_PROJECTION);
@@ -85,7 +106,7 @@ f32 get_text_width(Font* font, f32 size, utf8* text) {
         
         utf32 next_codepoint = *(text + 1);
         if (next_codepoint) {
-            f32 kern_advance = stbtt_GetCodepointKernAdvance(&font->info, codepoint, next_codepoint);
+            f32 kern_advance = (f32) stbtt_GetCodepointKernAdvance(&font->info, codepoint, next_codepoint);
             width += kern_advance * font_scale;
         }
 
@@ -105,8 +126,6 @@ f32 get_text_height(Font* font, f32 size) {
 }
 
 void draw_text(Font* font, f32 size, utf8* text, f32 r, f32 g, f32 b, f32 a) {
-    f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
-
     if (is_using_layout) {
         set_transform(layout_position);
         layout_position.y -= get_text_height(font, size);

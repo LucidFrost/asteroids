@@ -299,43 +299,43 @@ void build_entity_hierarchy(Entity* entity) {
     }
 }
 
-Array<Entity*> merge_sort(Array<Entity*> entities) {
-    entities.allocator = &temp_allocator;
+Array<Entity*> sort_visible_entities(Array<Entity*> visible_entities) {
+    visible_entities.allocator = &temp_allocator;
 
-    if (entities.count < 2) return entities;
-    u32 middle = entities.count / 2;
+    if (visible_entities.count < 2) return visible_entities;
+    u32 middle = visible_entities.count / 2;
     
-    Array<Entity*> left  = copy(&entities, 0, middle);
-    Array<Entity*> right = copy(&entities, middle, entities.count);
+    Array<Entity*> left  = copy(&visible_entities, 0, middle);
+    Array<Entity*> right = copy(&visible_entities, middle, visible_entities.count);
 
-    left  = merge_sort(left);
-    right = merge_sort(right);
+    left  = sort_visible_entities(left);
+    right = sort_visible_entities(right);
 
-    Array<Entity*> merged;
-    merged.allocator = &temp_allocator;
+    Array<Entity*> sorted;
+    sorted.allocator = &temp_allocator;
 
     while (left.count && right.count) {
         if (left[0]->sprite_order <= right[0]->sprite_order) {
-            add(&merged, left[0]);
+            add(&sorted, left[0]);
             remove(&left, 0);
         }
         else {
-            add(&merged, right[0]);
+            add(&sorted, right[0]);
             remove(&right, 0);
         }
     }
 
     while (left.count) {
-        add(&merged, left[0]);
+        add(&sorted, left[0]);
         remove(&left, 0);
     }
 
     while (right.count) {
-        add(&merged, right[0]);
+        add(&sorted, right[0]);
         remove(&right, 0);
     }
 
-    return merged;
+    return sorted;
 }
 
 // void draw_entity_hierarchy(Entity* entity, Vector2* layout) {
@@ -360,8 +360,8 @@ void start_level(u32 level) {
         current_asteroids = START_ASTEROIDS;
     }
     else {
-        f32 growth = powf(1.0f + LEVEL_GROWTH_RATE, level);
-        current_asteroids = floorf(START_ASTEROIDS * growth);
+        f32 growth = powf(1.0f + LEVEL_GROWTH_RATE, (f32) level);
+        current_asteroids = (u32) floorf(START_ASTEROIDS * growth);
     }
 
     current_level = level;
@@ -388,7 +388,7 @@ void init_game() {
     world_bottom = -world_height / 2.0f;
 
     world_projection = make_orthographic_matrix(world_left, world_right, world_top, world_bottom, -10.0f, 10.0f);
-    gui_projection   = make_orthographic_matrix(0.0f, window_width, window_height, 0.0f);
+    gui_projection   = make_orthographic_matrix(0.0f, (f32) window_width, (f32) window_height, 0.0f);
 
     the_player = create_entity(Entity_Type::PLAYER)->player;
     the_enemy  = create_entity(Entity_Type::ENEMY)->enemy;
@@ -542,7 +542,7 @@ void update_game() {
     for (u32 x = 0; x < 6; x++) {
         for (u32 y = 0; y < 3; y++) {
             Vector2 position = make_vector2(world_left, world_bottom);
-            position += make_vector2(x, y) * 5.0f;
+            position += make_vector2((f32) x, (f32) y) * 5.0f;
 
             set_transform(position);
             draw_sprite(&background_sprite, 5.0f, 5.0f, false);
@@ -559,7 +559,7 @@ void update_game() {
         add(&visible_entities, entity);
     }
     
-    Array<Entity*> sorted_entities = merge_sort(visible_entities);
+    Array<Entity*> sorted_entities = sort_visible_entities(visible_entities);
 
     for_each (Entity** it, &sorted_entities) {
         Entity* entity = *it;
@@ -587,6 +587,23 @@ void update_game() {
             set_transform(make_vector2(100.0f + (i * (width + 15.0f)), 100.0f), -45.0f);
             draw_sprite(&player_life_sprite, width, height);
         }
+
+        // begin_layout(Layout_Anchor::TOP_RIGHT, 0.0f, 50.0f, 50.0f); {
+        //     gui_text(&font_future, 45.0f, format_string("%u", the_player->score));
+        // }
+        // end_layout();
+
+        // begin_layout(Layout_Anchor::CENTER, 10.0f); {
+        //     if (the_player->is_dead) {
+        //         gui_text(&font_future, 30.0f, format_string("you have %u lives left", the_player->lives));
+        //         gui_text(&font_future, 24.0f, "press space bar to spawn your ship");
+        //     }
+        //     else {
+        //         gui_text(&font_future, 30.0f, format_string("you scored %u points", the_player->score));
+        //         gui_text(&font_future, 24.0f, "press space bar to play again");
+        //     }
+        // }
+        // end_layout();
 
         utf8* score_text = format_string("%u", the_player->score);
         set_transform(make_vector2(
@@ -644,19 +661,10 @@ void update_game() {
     }
 
     #if DEBUG
-        begin_layout(16.0f, window_height - get_text_height(&font_arial, 24.0f) - 16.0f); {
-            draw_text(
-                &font_arial, 
-                24.0f,
-                format_string("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta)), 
-                1.0f, 1.0f, 1.0f, 1.0f);
-            
-            draw_text(
-                &font_arial, 
-                24.0f,
-                format_string("%u, %u", heap_memory_allocated, temp_memory_allocated),
-                1.0f, 1.0f, 1.0f, 1.0f);
-        }
-        end_layout();
+        // begin_layout(Layout_Anchor::TOP_LEFT, 16.0f, 16.0f); {
+        //     gui_text(&font_arial, 24.0f, format_string("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta)));
+        //     gui_text(&font_arial, 24.0f, format_string("%u, %u", heap_memory_allocated, temp_memory_allocated));
+        // }
+        // end_layout();
     #endif
 }

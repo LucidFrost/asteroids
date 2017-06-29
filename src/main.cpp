@@ -1,3 +1,8 @@
+#pragma warning(disable: 4100)
+#pragma warning(disable: 4189)
+#pragma warning(disable: 4456)
+#pragma warning(disable: 4800)
+
 #define WIN32_LEAN_AND_MEAN
 #define STRICT
 
@@ -9,14 +14,9 @@
 
 #include <stdint.h>
 
-// @todo: drop assert, stdlib (random), and stdio (file/console io)
-
-#include <assert.h>
+// @todo: drop stdlib (random) and stdio (file/console io)
 #include <stdlib.h>
 #include <stdio.h>
-
-// @todo: Define stb libraries to use my functions rather than
-// the standard library ones
 
 typedef uint8_t  u8;
 typedef uint16_t u16;
@@ -32,13 +32,39 @@ typedef char     utf8;
 typedef char16_t utf16;
 typedef char32_t utf32;
 
+#define OS_WINDOWS 1
+
 #define null 0
 
 #define size_of(type)           ((u32) sizeof(type))
 #define count_of(array)         (size_of(array) / size_of(array[0]))
 #define offset_of(type, member) ((u32) ((type*) null)->member)
 
-#define invalid_default_case() assert(!"Invalid default case")
+#if DEBUG
+    #define assert(expression)                                              \
+        do {                                                                \
+            if (!(expression)) __assert(__FILE__, __LINE__, #expression);   \
+        } while (0)
+#else
+    #define assert(expression)
+#endif
+
+void __assert(utf8* file_name, u32 line_number, utf8* expression_string) {
+    utf8* format_string(utf8* string, ...);
+
+    utf8* message = format_string("Assertion failed at %s (%u), %s\n", file_name, line_number, expression_string);
+    printf(message);
+
+    MessageBox(null, message, null, MB_ICONERROR | MB_OK);
+
+    if (IsDebuggerPresent()) {
+        DebugBreak();
+    }
+
+    ExitProcess(1);
+}
+
+#define invalid_default_case() default: assert(!"Invalid default case"); break
 
 typedef void* Alloc(u32 size);
 typedef void  Dealloc(void* memory);
@@ -91,8 +117,8 @@ void pop_allocator() {
     allocators_index -= 1;
 }
 
-void* operator new(size_t size)               { return get_current_allocator()->alloc(size); }
-void* operator new(size_t size, void* memory) { return memory; }
+void* operator new(size_t size)               { return get_current_allocator()->alloc((u32) size); }
+void* operator new(size_t size, void* memory) { (void) size; return memory; }
 void  operator delete(void* memory)           { get_current_allocator()->dealloc(memory); }
 
 Allocator heap_allocator;
@@ -109,14 +135,35 @@ void* heap_alloc(u32 size) {
         heap_memory_high_water_mark = heap_memory_allocated;
     }
 
-    return HeapAlloc(process_heap, 0, size);
+    void* result = HeapAlloc(process_heap, 0, size);
+    assert(result);
+
+    return result;
 }
 
 void heap_dealloc(void* memory) {
-    u32 size = HeapSize(process_heap, 0, memory);
+    if (!memory) return;
+    assert(HeapValidate(process_heap, 0, memory));
+
+    u32 size = (u32) HeapSize(process_heap, 0, memory);
     heap_memory_allocated -= size;
 
     HeapFree(process_heap, 0, memory);
+}
+
+void* heap_realloc(void* memory, u32 new_size) {
+    if (!memory) return heap_alloc(new_size);
+    assert(HeapValidate(process_heap, 0, memory));
+
+    u32 old_size = (u32) HeapSize(process_heap, 0, memory);
+    
+    heap_memory_allocated -= old_size;
+    heap_memory_allocated += new_size;
+
+    void* result = HeapReAlloc(process_heap, 0, memory, new_size);
+    assert(result);
+    
+    return result;
 }
 
 Allocator temp_allocator;
@@ -141,42 +188,7 @@ void* temp_alloc(u32 size) {
 }
 
 void temp_dealloc(void* memory) {
-
-}
-
-#include "data_structures.cpp"
-#include "math.cpp"
-
-void seed_random(u32 seed) {
-    srand(seed);
-}
-
-u32 get_random_u32() {
-    return rand();
-}
-
-u32 get_random_out_of(u32 count) {
-    return get_random_u32() % count;
-}
-
-bool get_random_chance(u32 chance) {
-    return get_random_out_of(chance) == chance - 1;
-}
-
-f32 get_random_unilateral() {
-    return (f32) get_random_u32() / (f32) RAND_MAX;
-}
-
-f32 get_random_bilateral() {
-    return (2.0f * get_random_unilateral()) - 1.0f;
-}
-
-f32 get_random_between(f32 min, f32 max) {
-    return lerp(min, get_random_unilateral(), max);
-}
-
-i32 get_random_between(i32 min, i32 max) {
-    return min + ((i32) get_random_u32() % ((max + 1) - min));
+    (void) memory;
 }
 
 utf8* format_string_args(utf8* string, va_list args) {
@@ -217,6 +229,42 @@ void* read_entire_file(utf8* file_name) {
     return result;
 }
 
+
+#include "data_structures.cpp"
+#include "math.cpp"
+
+void seed_random(u32 seed) {
+    srand(seed);
+}
+
+u32 get_random_u32() {
+    return rand();
+}
+
+u32 get_random_out_of(u32 count) {
+    return get_random_u32() % count;
+}
+
+bool get_random_chance(u32 chance) {
+    return get_random_out_of(chance) == chance - 1;
+}
+
+f32 get_random_unilateral() {
+    return (f32) get_random_u32() / (f32) RAND_MAX;
+}
+
+f32 get_random_bilateral() {
+    return (2.0f * get_random_unilateral()) - 1.0f;
+}
+
+f32 get_random_between(f32 min, f32 max) {
+    return lerp(min, get_random_unilateral(), max);
+}
+
+i32 get_random_between(i32 min, i32 max) {
+    return min + ((i32) get_random_u32() % ((max + 1) - min));
+}
+
 u32 window_width;
 u32 window_height;
 
@@ -242,7 +290,7 @@ u32  highest_water_mark = 0;
 
 #include "game.cpp"
 
-LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
+LRESULT CALLBACK window_proc(HWND handle, UINT message, WPARAM w_param, LPARAM l_param) {
     LRESULT result = 0;
 
     switch (message) {
@@ -251,7 +299,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
             break;
         }
         default: {
-            result = DefWindowProc(window, message, w_param, l_param);
+            result = DefWindowProc(handle, message, w_param, l_param);
             break;
         }
     }
@@ -286,14 +334,19 @@ i32 main() {
     u32 screen_width  = GetSystemMetrics(SM_CXSCREEN);
     u32 screen_height = GetSystemMetrics(SM_CYSCREEN);
 
-    // u32 window_x = (screen_width  / 2) - (WINDOW_WIDTH  / 2);
-    // u32 window_y = (screen_height / 2) - (WINDOW_HEIGHT / 2);
+    #if DEBUG
+        window_width  = 1600;
+        window_height = 900;
 
-    u32 window_x = 0;
-    u32 window_y = 0;
+        u32 window_x = (screen_width  / 2) - (window_width  / 2);
+        u32 window_y = (screen_height / 2) - (window_height / 2);
+    #else
+        window_width  = screen_width;
+        window_height = screen_height;
 
-    window_width  = screen_width;
-    window_height = screen_height;
+        u32 window_x = 0;
+        u32 window_y = 0;
+    #endif
 
     window = CreateWindow(
         window_class.lpszClassName, 
@@ -346,7 +399,7 @@ i32 main() {
     time.ticks_last      = ticks_start.QuadPart;
     time.ticks_current   = ticks_start.QuadPart;
 
-    seed_random(time.ticks_start);
+    seed_random((u32) time.ticks_start);
 
     init_draw();
     init_sound();

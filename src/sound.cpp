@@ -1,7 +1,18 @@
 #include "xaudio2.h"
 #pragma comment(lib, "xaudio2.lib")
 
-#include "../lib/stb_vorbis.h"
+#pragma warning(push)
+    #pragma warning(disable: 4100)
+    #pragma warning(disable: 4244)
+    #pragma warning(disable: 4245)
+    #pragma warning(disable: 4456)
+    #pragma warning(disable: 4457)
+    #pragma warning(disable: 4459)
+    #pragma warning(disable: 4701)
+
+    #include "../lib/stb_vorbis.h"
+#pragma warning(pop)
+
 
 IXAudio2* x_audio;
 IXAudio2MasteringVoice* mastering_voice;
@@ -41,10 +52,10 @@ struct Playing_Sound : public IXAudio2VoiceCallback {
 
     void OnVoiceProcessingPassEnd() {}
     void OnVoiceProcessingPassStart(UINT32 samples_required) {}
-    void OnBufferEnd(void * buffer_context) {}
-    void OnBufferStart(void * buffer_context) {}
-    void OnLoopEnd(void * buffer_context) {}
-    void OnVoiceError(void * buffer_context, HRESULT error) {}
+    void OnBufferEnd(void* buffer_context) {}
+    void OnBufferStart(void* buffer_context) {}
+    void OnLoopEnd(void* buffer_context) {}
+    void OnVoiceError(void* buffer_context, HRESULT error) {}
 };
 
 Bucket_Array<Playing_Sound, 32> playing_sounds;
@@ -111,7 +122,9 @@ void init_sound() {
     XAudio2Create(&x_audio, 0, XAUDIO2_DEFAULT_PROCESSOR);
     x_audio->CreateMasteringVoice(&mastering_voice);
 
-    mastering_voice->SetVolume(0.25f);
+    #if DEBUG
+        mastering_voice->SetVolume(0.0f);
+    #endif
 
     music_sound    = load_sound("data/sounds/music.ogg");
     laser_01_sound = load_sound("data/sounds/laser_01.ogg");
