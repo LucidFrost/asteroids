@@ -66,7 +66,14 @@ Playing_Sound* play_sound(Sound* sound, float volume = 1.0f, bool loop = false) 
     Playing_Sound* playing_sound = next(&playing_sounds);
     playing_sound->sound = sound;
 
-    x_audio->CreateSourceVoice(&playing_sound->source_voice, &source_format, 0, XAUDIO2_DEFAULT_FREQ_RATIO, playing_sound, null, null);
+    x_audio->CreateSourceVoice(
+        &playing_sound->source_voice, 
+        &source_format, 
+        0, 
+        XAUDIO2_DEFAULT_FREQ_RATIO, 
+        playing_sound, 
+        null, 
+        null);
 
     XAUDIO2_BUFFER buffer = {
         XAUDIO2_END_OF_STREAM,

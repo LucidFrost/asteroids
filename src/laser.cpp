@@ -2,7 +2,6 @@ void on_create(Laser* laser) {
     laser->entity->has_collider = true;
     laser->entity->collider_radius = 0.1f;
 
-    laser->entity->sprite        = &laser_sprite;
     laser->entity->sprite_size   = 0.75f;
     laser->entity->sprite_offset = make_vector2(0.0f, -0.3f);
     laser->entity->is_visible    = true;
@@ -63,7 +62,13 @@ void on_collision(Laser* laser, Entity* them) {
                 }
                 case Entity_Type::PLAYER: {
                     if (!them->player->is_dead) {
-                        kill_player(them->player);
+                        if (them->player->has_shield) {
+                            destroy_shield(them->player);
+                        }
+                        else {
+                            kill_player(them->player);
+                        }
+
                         destroy_entity(laser->entity);
                     }
                     

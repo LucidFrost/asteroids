@@ -224,6 +224,8 @@ Bucket_Locator add(Bucket_Array<type, size>* bucket_array, type element) {
     bucket_locator.array_index  = array_index;
     bucket_locator.bucket_index = bucket_index;
 
+    bucket_array->count += 1;
+
     return bucket_locator;
 }
 
@@ -235,6 +237,7 @@ void remove(Bucket_Array<type, size>* bucket_array, Bucket_Locator locator) {
     // @todo: Drop a bucket if there is a good amount of room in another bucket?
 
     bucket->occupied[locator.bucket_index] = false;
+    bucket_array->count -= 1;
 }
 
 template<typename type, u32 size>
@@ -312,7 +315,12 @@ type* get_next(Bucket_Iterator<type, size>* iterator) {
     for (u32 i = iterator->current.array_index; i < iterator->bucket_array->buckets.count; i++) {
         Bucket<type, size>* bucket = iterator->bucket_array->buckets[i];
         
-        for (u32 j = iterator->current.bucket_index + 1; j < size; j++) {
+        u32 bucket_start = 0;
+        if (i == iterator->current.array_index) {
+            bucket_start = iterator->current.bucket_index + 1;
+        }
+
+        for (u32 j = bucket_start; j < size; j++) {
             if (!bucket->occupied[j]) continue;
 
             iterator->next.array_index  = i;

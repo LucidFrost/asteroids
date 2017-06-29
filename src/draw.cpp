@@ -288,7 +288,8 @@ Font font_future;
 
 Sprite background_sprite;
 Sprite ship_sprite;
-Sprite laser_sprite;
+Sprite laser_blue_sprite;
+Sprite laser_red_sprite;
 Sprite thrust_sprite;
 Sprite asteroid_small_sprite;
 Sprite asteroid_medium_sprite;
@@ -296,6 +297,7 @@ Sprite asteroid_large_sprite;
 Sprite enemy_big_sprite;
 Sprite enemy_small_sprite;
 Sprite player_life_sprite;
+Sprite shield_sprite;
 
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
@@ -308,7 +310,8 @@ void init_draw() {
 
     background_sprite      = load_sprite("data/sprites/background.png");
     ship_sprite            = load_sprite("data/sprites/ship.png");
-    laser_sprite           = load_sprite("data/sprites/laser.png");
+    laser_blue_sprite      = load_sprite("data/sprites/laser_blue.png");
+    laser_red_sprite       = load_sprite("data/sprites/laser_red.png");
     thrust_sprite          = load_sprite("data/sprites/thrust.png");
     asteroid_small_sprite  = load_sprite("data/sprites/asteroid_small.png");
     asteroid_medium_sprite = load_sprite("data/sprites/asteroid_medium.png");
@@ -316,4 +319,5 @@ void init_draw() {
     enemy_big_sprite       = load_sprite("data/sprites/enemy_big.png");
     enemy_small_sprite     = load_sprite("data/sprites/enemy_small.png");
     player_life_sprite     = load_sprite("data/sprites/player_life.png");
+    shield_sprite          = load_sprite("data/sprites/shield.png");
 }

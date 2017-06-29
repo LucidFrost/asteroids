@@ -4,13 +4,13 @@
 //  - A dev console
 //
 
-const f32 WORLD_HEIGHT = 15.0f;
-const f32 WORLD_WIDTH  = WORLD_HEIGHT * ((f32) WINDOW_WIDTH / (f32) WINDOW_HEIGHT);
+f32 world_height;
+f32 world_width;
 
-const f32 WORLD_LEFT   = -WORLD_WIDTH  / 2.0f;
-const f32 WORLD_RIGHT  =  WORLD_WIDTH  / 2.0f;
-const f32 WORLD_TOP    =  WORLD_HEIGHT / 2.0f;
-const f32 WORLD_BOTTOM = -WORLD_HEIGHT / 2.0f;
+f32 world_left;
+f32 world_right;
+f32 world_top;
+f32 world_bottom;
 
 Matrix4 world_projection;
 Matrix4 gui_projection;
@@ -18,7 +18,32 @@ Matrix4 gui_projection;
 Playing_Sound* playing_music;
 f32 music_volume;
 
-bool is_showing_menu;
+// const f32 WAVE_BREAK_TIME  = 5.0f;
+// const f32 WAVE_GROWTH_RATE = 0.10f;
+
+// const int   TOTAL_ENEMIES_START = 5;
+// const f32 SPAWN_RATE_START    = 0.75f;
+// const f32 ENEMY_SPEED_START   = 1.0f;
+
+// f32 growth = powf(1.0f + WAVE_GROWTH_RATE, wave);
+
+// total_enemies = TOTAL_ENEMIES_START * growth;
+// remaining_enemies = total_enemies;
+
+// spawn_rate       = SPAWN_RATE_START * growth;
+// wave_break_timer = WAVE_BREAK_TIME;
+// enemy_speed      = ENEMY_SPEED_START * growth;
+
+const f32 LEVEL_GROWTH_RATE = 0.15f;
+const f32 NEXT_LEVEL_DELAY  = 1.5f;
+
+const u32 START_ASTEROIDS = 4;
+
+u32 current_level;
+u32 current_asteroids;
+
+bool is_waiting_for_next_level;
+f32  next_level_timer;
 
 enum struct Entity_Type {
     NONE,
@@ -93,9 +118,13 @@ struct Player {
 
     Entity* left_thrust  = null;
     Entity* right_thrust = null;
+    Entity* shield       = null;
 
     Vector2 velocity;
     Vector2 desired_direction;
+
+    bool has_shield   = false;
+    f32  shield_timer = 0.0f;
 
     u32 last_mouse_x = 0;
     u32 last_mouse_y = 0;
@@ -161,10 +190,10 @@ Entity* create_entity(Entity_Type type, Entity* parent = &root_entity);
 void    destroy_entity(Entity* entity);
 Entity* find_entity(u32 id);
 
-#include "entity_asteroid.cpp"
-#include "entity_player.cpp"
-#include "entity_enemy.cpp"
-#include "entity_laser.cpp"
+#include "asteroid.cpp"
+#include "player.cpp"
+#include "enemy.cpp"
+#include "laser.cpp"
 
 // @todo: Once the game is more settled, measure and test various values here
 // to find the most efficient bucket size
@@ -326,153 +355,184 @@ Array<Entity*> merge_sort(Array<Entity*> entities) {
 //     layout->x -= 16.0f;
 // }
 
-void init_game() {
-    world_projection = make_orthographic_matrix(WORLD_LEFT, WORLD_RIGHT, WORLD_TOP, WORLD_BOTTOM, -10.0f, 10.0f);
-    gui_projection   = make_orthographic_matrix(0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f);
+void start_level(u32 level) {
+    if (level == 1) {
+        current_asteroids = START_ASTEROIDS;
+    }
+    else {
+        f32 growth = powf(1.0f + LEVEL_GROWTH_RATE, level);
+        current_asteroids = floorf(START_ASTEROIDS * growth);
+    }
 
-    the_player = create_entity(Entity_Type::PLAYER)->player;
-    the_enemy  = create_entity(Entity_Type::ENEMY)->enemy;
+    current_level = level;
 
-    for (u32 i = 0; i < 4; i++) {
+    for (u32 i = 0; i < current_asteroids; i++) {
         Asteroid* asteroid = create_entity(Entity_Type::ASTEROID)->asteroid;
         set_asteroid_size(asteroid, Asteroid_Size::LARGE);
 
         asteroid->entity->position = make_vector2(
-            get_random_between(WORLD_LEFT, WORLD_RIGHT), 
-            get_random_between(WORLD_BOTTOM, WORLD_TOP));
+            get_random_between(world_left, world_right), 
+            get_random_between(world_bottom, world_top));
     }
 
+    printf("Started level %u (asteroids: %u)\n", current_level, current_asteroids);
+}
+
+void init_game() {
+    world_height = 15.0f;
+    world_width  = world_height * ((f32) window_width / (f32) window_height);
+
+    world_left   = -world_width  / 2.0f;
+    world_right  =  world_width  / 2.0f;
+    world_top    =  world_height / 2.0f;
+    world_bottom = -world_height / 2.0f;
+
+    world_projection = make_orthographic_matrix(world_left, world_right, world_top, world_bottom, -10.0f, 10.0f);
+    gui_projection   = make_orthographic_matrix(0.0f, window_width, window_height, 0.0f);
+
+    the_player = create_entity(Entity_Type::PLAYER)->player;
+    the_enemy  = create_entity(Entity_Type::ENEMY)->enemy;
+
     playing_music = play_sound(&music_sound, music_volume, true);
+    start_level(1);
 }
 
 void update_game() {
-    music_volume = lerp(music_volume, 0.05f * time.delta, 0.15f);
+    music_volume = lerp(music_volume, 0.05f * time.delta, 0.5f);
     set_volume(playing_music, music_volume);
 
     if (input.key_escape.down || input.gamepad_start.down) {
-        is_showing_menu = !is_showing_menu;
+        should_quit = true;
     }
 
-    if (is_showing_menu) {
-        
+    if (is_waiting_for_next_level) {
+        if ((next_level_timer -= time.delta) <= 0.0f) {
+            is_waiting_for_next_level = false;
+            start_level(current_level + 1);
+        }
     }
     else {
-        for_each (Entity* entity, &entities) {
-            switch (entity->type) {
-                case Entity_Type::NONE: {
-                    break;
-                }
-                case Entity_Type::PLAYER: {
-                    on_update(entity->player);
-                    break;
-                }
-                case Entity_Type::LASER: {
-                    on_update(entity->laser);
-                    break;
-                }
-                case Entity_Type::ASTEROID: {
-                    on_update(entity->asteroid);
-                    break;
-                }
-                case Entity_Type::ENEMY: {
-                    on_update(entity->enemy);
-                    break;
-                }
-                invalid_default_case();
-            }
-
-            if (entity->position.x < WORLD_LEFT)   entity->position.x = WORLD_RIGHT;
-            if (entity->position.x > WORLD_RIGHT)  entity->position.x = WORLD_LEFT;
-            if (entity->position.y < WORLD_BOTTOM) entity->position.y = WORLD_TOP;
-            if (entity->position.y > WORLD_TOP)    entity->position.y = WORLD_BOTTOM;
+        if (!asteroids.count && the_enemy->is_dead) {
+            is_waiting_for_next_level = true;
+            next_level_timer = NEXT_LEVEL_DELAY;
         }
-
-        for_each (Entity* us, &entities) {
-            if (!us->has_collider) continue;
-
-            for_each (Entity* them, &entities) {
-                if (us == them)          continue;
-                if (!them->has_collider) continue;
-
-                f32 distance = get_length(them->position - us->position);
-                if (distance <= us->collider_radius + them->collider_radius) {
-                    switch (us->type) {
-                        case Entity_Type::NONE: {
-                            break;
-                        }
-                        case Entity_Type::PLAYER: {
-                            on_collision(us->player, them);
-                            break;
-                        }
-                        case Entity_Type::LASER: {
-                            on_collision(us->laser, them);
-                            break;
-                        }
-                        case Entity_Type::ASTEROID: {
-                            on_collision(us->asteroid, them);
-                            break;
-                        }
-                        case Entity_Type::ENEMY: {
-                            on_collision(us->enemy, them);
-                            break;
-                        }
-                        invalid_default_case();
-                    }
-                }
-            }
-        }
-
-        for_each (Entity* entity, &entities) {
-            if (!entity->needs_to_be_destroyed) continue;
-
-            switch (entity->type) {
-                case Entity_Type::NONE: {
-                    break;
-                }
-                case Entity_Type::PLAYER: {
-                    on_destroy(entity->player);
-                    remove(&players, entity->player);
-
-                    break;
-                }
-                case Entity_Type::LASER: {
-                    on_destroy(entity->laser);
-                    remove(&lasers, entity->laser);
-
-                    break;
-                }
-                case Entity_Type::ASTEROID: {
-                    on_destroy(entity->asteroid);
-                    remove(&asteroids, entity->asteroid);
-
-                    break;
-                }
-                case Entity_Type::ENEMY: {
-                    on_destroy(entity->enemy);
-                    remove(&enemies, entity->enemy);
-
-                    break;
-                }
-                invalid_default_case();
-            }
-
-            if (entity->parent->child == entity) {
-                entity->parent->child = entity->sibling;
-            }
-            else {
-                Entity* child = entity->parent->child;
-                while (child->sibling != entity) {
-                    child = child->sibling;
-                }
-
-                child->sibling = entity->sibling;
-            }
-
-            remove(&entities, entity);
-        }
-
-        build_entity_hierarchy(&root_entity);
     }
+
+    for_each (Entity* entity, &entities) {
+        switch (entity->type) {
+            case Entity_Type::NONE: {
+                break;
+            }
+            case Entity_Type::PLAYER: {
+                on_update(entity->player);
+                break;
+            }
+            case Entity_Type::LASER: {
+                on_update(entity->laser);
+                break;
+            }
+            case Entity_Type::ASTEROID: {
+                on_update(entity->asteroid);
+                break;
+            }
+            case Entity_Type::ENEMY: {
+                on_update(entity->enemy);
+                break;
+            }
+            invalid_default_case();
+        }
+
+        if (entity->position.x < world_left)   entity->position.x = world_right;
+        if (entity->position.x > world_right)  entity->position.x = world_left;
+        if (entity->position.y < world_bottom) entity->position.y = world_top;
+        if (entity->position.y > world_top)    entity->position.y = world_bottom;
+    }
+
+    for_each (Entity* us, &entities) {
+        if (!us->has_collider) continue;
+
+        for_each (Entity* them, &entities) {
+            if (us == them)          continue;
+            if (!them->has_collider) continue;
+
+            f32 distance = get_length(them->position - us->position);
+            if (distance <= us->collider_radius + them->collider_radius) {
+                switch (us->type) {
+                    case Entity_Type::NONE: {
+                        break;
+                    }
+                    case Entity_Type::PLAYER: {
+                        on_collision(us->player, them);
+                        break;
+                    }
+                    case Entity_Type::LASER: {
+                        on_collision(us->laser, them);
+                        break;
+                    }
+                    case Entity_Type::ASTEROID: {
+                        on_collision(us->asteroid, them);
+                        break;
+                    }
+                    case Entity_Type::ENEMY: {
+                        on_collision(us->enemy, them);
+                        break;
+                    }
+                    invalid_default_case();
+                }
+            }
+        }
+    }
+
+    for_each (Entity* entity, &entities) {
+        if (!entity->needs_to_be_destroyed) continue;
+
+        switch (entity->type) {
+            case Entity_Type::NONE: {
+                break;
+            }
+            case Entity_Type::PLAYER: {
+                on_destroy(entity->player);
+                remove(&players, entity->player);
+
+                break;
+            }
+            case Entity_Type::LASER: {
+                on_destroy(entity->laser);
+                remove(&lasers, entity->laser);
+
+                break;
+            }
+            case Entity_Type::ASTEROID: {
+                on_destroy(entity->asteroid);
+                remove(&asteroids, entity->asteroid);
+
+                break;
+            }
+            case Entity_Type::ENEMY: {
+                on_destroy(entity->enemy);
+                remove(&enemies, entity->enemy);
+
+                break;
+            }
+            invalid_default_case();
+        }
+
+        if (entity->parent->child == entity) {
+            entity->parent->child = entity->sibling;
+        }
+        else {
+            Entity* child = entity->parent->child;
+            while (child->sibling != entity) {
+                child = child->sibling;
+            }
+
+            child->sibling = entity->sibling;
+        }
+
+        remove(&entities, entity);
+    }
+
+    build_entity_hierarchy(&root_entity);
 
     glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -481,7 +541,7 @@ void update_game() {
 
     for (u32 x = 0; x < 6; x++) {
         for (u32 y = 0; y < 3; y++) {
-            Vector2 position = make_vector2(WORLD_LEFT, WORLD_BOTTOM);
+            Vector2 position = make_vector2(world_left, world_bottom);
             position += make_vector2(x, y) * 5.0f;
 
             set_transform(position);
@@ -509,42 +569,94 @@ void update_game() {
 
         draw_sprite(entity->sprite, entity->sprite_size * entity->sprite->aspect, entity->sprite_size);
 
-        // if (entity->has_collider) {
-        //     set_transform(&entity->transform);
-        //     draw_circle(entity->collider_radius, 0.0f, 1.0f, 0.0f, 1.0f, false);
-        // }
+        #if DEBUG
+            if (entity->has_collider) {
+                set_transform(&entity->transform);
+                draw_circle(entity->collider_radius, 0.0f, 1.0f, 0.0f, 1.0f, false);
+            }
+        #endif
     }
 
     set_projection(&gui_projection);
-    
-    for (u32 i = 0; i < the_player->lives; i++) {
-        float width  = player_life_sprite.width  * 1.25f;
-        float height = player_life_sprite.height * 1.25f;
 
-        set_transform(make_vector2(50.0f + (i * (width + 15.0f)), 50.0f), -45.0f);
-        draw_sprite(&player_life_sprite, width, height);
+    if (the_player->lives) {
+        for (u32 i = 0; i < the_player->lives; i++) {
+            f32 width  = player_life_sprite.width  * 1.75f;
+            f32 height = player_life_sprite.height * 1.75f;
+
+            set_transform(make_vector2(100.0f + (i * (width + 15.0f)), 100.0f), -45.0f);
+            draw_sprite(&player_life_sprite, width, height);
+        }
+
+        utf8* score_text = format_string("%u", the_player->score);
+        set_transform(make_vector2(
+            window_width  - 50.0f - get_text_width(&font_future, 45.0f, score_text), 
+            window_height - 30.0f - get_text_height(&font_future, 45.0f)));
+
+        draw_text(&font_future, 45.0f, score_text, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        if (the_player->is_dead) {
+            utf8* lives_text = format_string("you have %u lives left", the_player->lives);
+            f32   lives_size = 30.0f;
+
+            f32 lives_width  = get_text_width(&font_future, lives_size, lives_text);
+            f32 lives_height = get_text_height(&font_future, lives_size);
+
+            utf8* spawn_text = "press space bar to spawn your ship";
+            f32   spawn_size = 24.0f;
+
+            f32 spawn_width  = get_text_width(&font_future, spawn_size, spawn_text);
+            f32 spawn_height = get_text_height(&font_future, spawn_size);
+
+            set_transform(make_vector2((window_width / 2.0f) - (lives_width / 2.0f), (window_height / 2.0f) + 5.0f));
+            draw_text(&font_future, lives_size, lives_text, 1.0f, 1.0f, 1.0f, 1.0f);
+
+            set_transform(make_vector2((window_width / 2.0f) - (spawn_width / 2.0f), (window_height / 2.0f) - 5.0f - spawn_height));
+            draw_text(&font_future, spawn_size, spawn_text, 1.0f, 1.0f, 1.0f, 1.0f);
+        }
+    }
+    else {
+        utf8* score_text = format_string("you scored %u points", the_player->score);
+        f32   score_size = 30.0f;
+
+        f32 score_width  = get_text_width(&font_future, score_size, score_text);
+        f32 score_height = get_text_height(&font_future, score_size);
+
+        utf8* play_again_text = "press space bar to play again";
+        f32   play_again_size = 24.0f;
+
+        f32 play_again_width  = get_text_width(&font_future, play_again_size, play_again_text);
+        f32 play_again_height = get_text_height(&font_future, play_again_size);
+
+        set_transform(make_vector2((window_width / 2.0f) - (score_width / 2.0f), (window_height / 2.0f) + 5.0f));
+        draw_text(&font_future, score_size, score_text, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        set_transform(make_vector2((window_width / 2.0f) - (play_again_width / 2.0f), (window_height / 2.0f) - 5.0f - play_again_height));
+        draw_text(&font_future, play_again_size, play_again_text, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        if (input.key_space.down) {
+            the_player->score = 0;
+            the_player->lives = 3;
+
+            start_level(1);
+            spawn_player(the_player);
+        }
     }
 
-    set_transform(make_vector2(50.0f - (player_life_sprite.width / 2.0f), 50.0f + (player_life_sprite.height * 1.25f) + 10.0f));
-    draw_text(&font_future, 45.0f, format_string("%u", the_player->score), 1.0f, 1.0f, 1.0f, 1.0f);
-
-    if (is_showing_menu) {
-        set_transform(make_vector2());
-        draw_rectangle(WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 0.0f, 0.0f, 0.25f, false);
-    }
-
-    begin_layout(16.0f, WINDOW_HEIGHT - get_text_height(&font_arial, 24.0f) - 16.0f); {
-        draw_text(
-            &font_arial, 
-            24.0f,
-            format_string("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta)), 
-            1.0f, 1.0f, 1.0f, 1.0f);
-        
-        draw_text(
-            &font_arial, 
-            24.0f,
-            format_string("%u, %u", heap_memory_allocated, temp_memory_allocated),
-            1.0f, 1.0f, 1.0f, 1.0f);
-    }
-    end_layout();
+    #if DEBUG
+        begin_layout(16.0f, window_height - get_text_height(&font_arial, 24.0f) - 16.0f); {
+            draw_text(
+                &font_arial, 
+                24.0f,
+                format_string("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta)), 
+                1.0f, 1.0f, 1.0f, 1.0f);
+            
+            draw_text(
+                &font_arial, 
+                24.0f,
+                format_string("%u, %u", heap_memory_allocated, temp_memory_allocated),
+                1.0f, 1.0f, 1.0f, 1.0f);
+        }
+        end_layout();
+    #endif
 }

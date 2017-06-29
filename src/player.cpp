@@ -2,6 +2,8 @@
 //  - The player can send the ship into hyperspace, causing it to disappear and reappear 
 //    in a random location on the screen, at the risk of self-destructing or appearing on top 
 //    of an asteroid.
+//  - Respawn invincibility
+//
 
 void add_score(Player* player, u32 score) {
     player->score += score;
@@ -20,16 +22,19 @@ void spawn_player(Player* player) {
     player->entity->position    = make_vector2();
     player->entity->orientation = 0.0f;
     player->entity->is_visible  = true;
-    
-    player->velocity          = make_vector2();
-    player->desired_direction = make_vector2();
-    player->is_dead           = false;
+    player->velocity            = make_vector2();
+    player->desired_direction   = make_vector2();
+    player->is_dead             = false;
+    player->has_shield          = true;
+    player->shield_timer        = 2.5f;
+    player->shield->is_visible  = true;
 
     play_sound(&spawn_sound);
 }
 
 void kill_player(Player* player) {
     assert(!player->is_dead);
+    assert(!player->has_shield);
 
     player->entity->is_visible = false;
 
@@ -40,6 +45,11 @@ void kill_player(Player* player) {
     player->right_thrust->is_visible = false;
 
     play_sound(&kill_01_sound);
+}
+
+void destroy_shield(Player* player) {
+    player->has_shield         = false;
+    player->shield->is_visible = false;
 }
 
 void on_create(Player* player) {
@@ -61,12 +71,18 @@ void on_create(Player* player) {
     player->right_thrust->sprite_size  = 0.5f;
     player->right_thrust->sprite_order = -1;
 
-    spawn_player(player);
+    player->shield = create_entity(Entity_Type::NONE, player->entity);
+
+    player->shield->sprite       = &shield_sprite;
+    player->shield->sprite_size  = 1.75f;
+    player->shield->sprite_order = 1;
 }
 
 void on_destroy(Player* player) {
     destroy_entity(player->left_thrust);
     destroy_entity(player->right_thrust);
+
+    destroy_entity(player->shield);
 }
 
 void on_update(Player* player) {
@@ -107,8 +123,8 @@ void on_update(Player* player) {
         }
 
         if (input.mouse_x != player->last_mouse_x || input.mouse_y != player->last_mouse_y) {
-            f32 normalized_x = ((2.0f * input.mouse_x) / WINDOW_WIDTH) - 1.0f;
-            f32 normalized_y = 1.0f - ((2.0f * input.mouse_y) / WINDOW_HEIGHT);
+            f32 normalized_x = ((2.0f * input.mouse_x) / window_width) - 1.0f;
+            f32 normalized_y = 1.0f - ((2.0f * input.mouse_y) / window_height);
 
             Vector2 mouse_position = make_inverse_matrix(world_projection) * make_vector2(normalized_x, normalized_y);
             player->desired_direction = normalize(mouse_position - player->entity->position);
@@ -124,10 +140,17 @@ void on_update(Player* player) {
 
         if (input.mouse_left.down || input.gamepad_right_trigger.down) {
             Laser* laser = create_entity(Entity_Type::LASER)->laser;
-            laser->shooter = player->entity;
 
+            laser->shooter             = player->entity;
+            laser->entity->sprite      = &laser_blue_sprite;
             laser->entity->position    = player->entity->position + (get_direction(player->entity->orientation) * 0.75f);
             laser->entity->orientation = player->entity->orientation;
+        }
+
+        if (player->has_shield) {
+            if ((player->shield_timer -= time.delta) <= 0.0f) {
+                destroy_shield(player);
+            }
         }
     }
 }
@@ -136,7 +159,13 @@ void on_collision(Player* player, Entity* them) {
     switch (them->type) {
         case Entity_Type::ASTEROID: {
             if (!player->is_dead) {
-                kill_player(player);
+                if (player->has_shield) {
+                    destroy_shield(player);
+                }
+                else {
+                    kill_player(player);
+                }
+
                 destroy_entity(them);
             }
 

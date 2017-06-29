@@ -44,11 +44,11 @@ void spawn_enemy(Enemy* enemy) {
     }
 
     if (get_random_chance(2)) {
-        enemy->entity->position = make_vector2(WORLD_RIGHT, get_random_between(WORLD_BOTTOM, WORLD_TOP));
+        enemy->entity->position = make_vector2(world_right, get_random_between(world_bottom, world_top));
         enemy->velocity = make_vector2(-3.0f, 0.0f);
     }
     else {
-        enemy->entity->position = make_vector2(WORLD_LEFT, get_random_between(WORLD_BOTTOM, WORLD_TOP));
+        enemy->entity->position = make_vector2(world_left, get_random_between(world_bottom, world_top));
         enemy->velocity = make_vector2(3.0f, 0.0f);
     }
 
@@ -83,7 +83,7 @@ void on_destroy(Enemy* enemy) {
 
 void on_update(Enemy* enemy) {
     if (enemy->is_dead) {
-        if ((enemy->respawn_timer -= time.delta) <= 0.0f) {
+        if ((enemy->respawn_timer -= time.delta) <= 0.0f && !is_waiting_for_next_level) {
             spawn_enemy(enemy);
         }
     }
@@ -111,8 +111,9 @@ void on_update(Enemy* enemy) {
             }
 
             Laser* laser = create_entity(Entity_Type::LASER)->laser;
-            laser->shooter = enemy->entity;
 
+            laser->shooter             = enemy->entity;
+            laser->entity->sprite      = &laser_red_sprite;
             laser->entity->position    = enemy->entity->position + (get_direction(fire_angle) * enemy->entity->sprite_size);
             laser->entity->orientation = fire_angle;
         }
@@ -131,8 +132,14 @@ void on_collision(Enemy* enemy, Entity* them) {
         }
         case Entity_Type::PLAYER: {
             if (!enemy->is_dead && !them->player->is_dead) {
+                if (them->player->has_shield) {
+                    destroy_shield(them->player);
+                }
+                else {
+                    kill_player(them->player);
+                }
+
                 kill_enemy(enemy);
-                kill_player(them->player);
             }
             
             break;

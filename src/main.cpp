@@ -217,8 +217,8 @@ void* read_entire_file(utf8* file_name) {
     return result;
 }
 
-const u32 WINDOW_WIDTH  = 1600;
-const u32 WINDOW_HEIGHT = 900;
+u32 window_width;
+u32 window_height;
 
 struct Time {
     u64 ticks_frequency = 0;
@@ -283,8 +283,17 @@ i32 main() {
 
     RegisterClass(&window_class);
 
-    u32 window_x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (WINDOW_WIDTH  / 2);
-    u32 window_y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (WINDOW_HEIGHT / 2);
+    u32 screen_width  = GetSystemMetrics(SM_CXSCREEN);
+    u32 screen_height = GetSystemMetrics(SM_CYSCREEN);
+
+    // u32 window_x = (screen_width  / 2) - (WINDOW_WIDTH  / 2);
+    // u32 window_y = (screen_height / 2) - (WINDOW_HEIGHT / 2);
+
+    u32 window_x = 0;
+    u32 window_y = 0;
+
+    window_width  = screen_width;
+    window_height = screen_height;
 
     window = CreateWindow(
         window_class.lpszClassName, 
@@ -292,8 +301,8 @@ i32 main() {
         WS_POPUP | WS_VISIBLE, 
         window_x, 
         window_y, 
-        WINDOW_WIDTH, 
-        WINDOW_HEIGHT, 
+        window_width, 
+        window_height, 
         null, 
         null, 
         window_class.hInstance, 
