@@ -10,9 +10,13 @@
 #include <stdint.h>
 
 // @todo: drop assert, stdlib (random), and stdio (file/console io)
+
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+// @todo: Define stb libraries to use my functions rather than
+// the standard library ones
 
 typedef uint8_t  u8;
 typedef uint16_t u16;
@@ -204,7 +208,7 @@ void* read_entire_file(utf8* file_name) {
         u32 file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
 
-        result = heap_alloc(file_size);
+        result = new u8[file_size];
         fread(result, 1, file_size, file);
 
         fclose(file);

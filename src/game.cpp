@@ -1,6 +1,7 @@
 // @todo:
 //  - Screen shake when lasers hit
 //  - Particle effects
+//  - A dev console
 //
 
 const f32 WORLD_HEIGHT = 15.0f;
@@ -308,23 +309,22 @@ Array<Entity*> merge_sort(Array<Entity*> entities) {
     return merged;
 }
 
-void draw_entity_hierarchy(Entity* entity, Vector2* layout) {
-    Matrix4 transform = make_transform_matrix(*layout);
-    set_transform(&transform);
+// void draw_entity_hierarchy(Entity* entity, Vector2* layout) {
+//     set_transform(*layout);
 
-    draw_text("%s", to_string(entity->type));
-    layout->y -= font_vertical_advance;
+//     draw_text("%s", to_string(entity->type));
+//     layout->y -= font_vertical_advance;
 
-    layout->x += 16.0f;
+//     layout->x += 16.0f;
 
-    Entity* child = entity->child;
-    while (child) {
-        draw_entity_hierarchy(child, layout);
-        child = child->sibling;
-    }
+//     Entity* child = entity->child;
+//     while (child) {
+//         draw_entity_hierarchy(child, layout);
+//         child = child->sibling;
+//     }
 
-    layout->x -= 16.0f;
-}
+//     layout->x -= 16.0f;
+// }
 
 void init_game() {
     world_projection = make_orthographic_matrix(WORLD_LEFT, WORLD_RIGHT, WORLD_TOP, WORLD_BOTTOM, -10.0f, 10.0f);
@@ -484,9 +484,7 @@ void update_game() {
             Vector2 position = make_vector2(WORLD_LEFT, WORLD_BOTTOM);
             position += make_vector2(x, y) * 5.0f;
 
-            Matrix4 transform = make_transform_matrix(position);
-            set_transform(&transform);
-
+            set_transform(position);
             draw_sprite(&background_sprite, 5.0f, 5.0f, false);
         }
     }
@@ -523,27 +521,40 @@ void update_game() {
         float width  = player_life_sprite.width  * 1.25f;
         float height = player_life_sprite.height * 1.25f;
 
-        Matrix4 transform = make_transform_matrix(make_vector2(50.0f + (i * (width + 15.0f)), 50.0f), -45.0f);
-        set_transform(&transform);
-
+        set_transform(make_vector2(50.0f + (i * (width + 15.0f)), 50.0f), -45.0f);
         draw_sprite(&player_life_sprite, width, height);
     }
 
-    if (is_showing_menu) {
-        Matrix4 transform = make_identity_matrix();
-        set_transform(&transform);
+    utf8* score_text   = format_string("%u", the_player->score);
+    f32   score_width  = get_text_width(&font_future, 24.0f, score_text);
+    f32   score_height = get_text_height(&font_future, 24.0f);
 
+    set_transform(make_vector2(WINDOW_WIDTH - 50.0f - score_width, WINDOW_HEIGHT - 50.0f - score_height));
+    draw_text(&font_future, 24.0f, score_text, 1.0f, 1.0f, 1.0f, 1.0f);
+
+    if (is_showing_menu) {
+        set_transform(make_vector2());
         draw_rectangle(WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 0.0f, 0.0f, 0.25f, false);
     }
 
-    begin_layout(16.0f, WINDOW_HEIGHT - font_height - 16.0f); {
-        draw_text("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta));
+    set_transform(make_vector2(100.0f, 100.0f));
+
+    begin_layout(16.0f, WINDOW_HEIGHT - 18.0f - 16.0f); {
+        draw_text(
+            &font_arial, 
+            18.0f,
+            format_string("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta)), 
+            1.0f, 1.0f, 1.0f, 1.0f);
         
-        draw_text("%u (%u), %u (%u)", 
-            heap_memory_allocated, 
-            heap_memory_high_water_mark,
-            temp_memory_allocated,
-            temp_memory_high_water_mark);
+        draw_text(
+            &font_arial, 
+            18.0f,
+            format_string("%u (%u), %u (%u)", 
+                heap_memory_allocated, 
+                heap_memory_high_water_mark,
+                temp_memory_allocated,
+                temp_memory_high_water_mark),
+            1.0f, 1.0f, 1.0f, 1.0f);
     }
     end_layout();
 }
