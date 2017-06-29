@@ -121,7 +121,7 @@ void heap_dealloc(void* memory) {
 
 Allocator temp_allocator;
 
-const u32 TEMP_MEMORY_SIZE = 32 * 1024;
+const u32 TEMP_MEMORY_SIZE = 512 * 1024;
 
 u8* temp_memory;
 u32 temp_memory_allocated;

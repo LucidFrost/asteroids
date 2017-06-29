@@ -525,35 +525,25 @@ void update_game() {
         draw_sprite(&player_life_sprite, width, height);
     }
 
-    utf8* score_text   = format_string("%u", the_player->score);
-    f32   score_width  = get_text_width(&font_future, 24.0f, score_text);
-    f32   score_height = get_text_height(&font_future, 24.0f);
-
-    set_transform(make_vector2(WINDOW_WIDTH - 50.0f - score_width, WINDOW_HEIGHT - 50.0f - score_height));
-    draw_text(&font_future, 24.0f, score_text, 1.0f, 1.0f, 1.0f, 1.0f);
+    set_transform(make_vector2(50.0f - (player_life_sprite.width / 2.0f), 50.0f + (player_life_sprite.height * 1.25f) + 10.0f));
+    draw_text(&font_future, 45.0f, format_string("%u", the_player->score), 1.0f, 1.0f, 1.0f, 1.0f);
 
     if (is_showing_menu) {
         set_transform(make_vector2());
         draw_rectangle(WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 0.0f, 0.0f, 0.25f, false);
     }
 
-    set_transform(make_vector2(100.0f, 100.0f));
-
-    begin_layout(16.0f, WINDOW_HEIGHT - 18.0f - 16.0f); {
+    begin_layout(16.0f, WINDOW_HEIGHT - get_text_height(&font_arial, 24.0f) - 16.0f); {
         draw_text(
             &font_arial, 
-            18.0f,
+            24.0f,
             format_string("%.2f, %.2f, %i", time.now, time.delta * 1000.0f, (u32) (1.0f / time.delta)), 
             1.0f, 1.0f, 1.0f, 1.0f);
         
         draw_text(
             &font_arial, 
-            18.0f,
-            format_string("%u (%u), %u (%u)", 
-                heap_memory_allocated, 
-                heap_memory_high_water_mark,
-                temp_memory_allocated,
-                temp_memory_high_water_mark),
+            24.0f,
+            format_string("%u, %u", heap_memory_allocated, temp_memory_allocated),
             1.0f, 1.0f, 1.0f, 1.0f);
     }
     end_layout();

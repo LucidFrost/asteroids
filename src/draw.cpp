@@ -22,16 +22,17 @@ void set_transform(Vector2 position, f32 orientation = 0.0, f32 scale = 1.0f) {
     set_transform(&transform);
 }
 
-struct Glyph {
-    utf32 codepoint = 0;
-    f32   size      = 0.0f;
-        
-    f32 x1 = 0.0f;
-    f32 y1 = 0.0f;
-    f32 x2 = 0.0f;
-    f32 y2 = 0.0f;
+const utf32 CODEPOINT_START = 32;
+const utf32 CODEPOINT_COUNT = 96;
 
+const u32 BAKED_FONT_BITMAP_WIDTH  = 512;
+const u32 BAKED_FONT_BITMAP_HEIGHT = 512;
+
+struct Baked_Font {
+    f32 size = 0.0f;
     u32 texture_id = 0;
+
+    stbtt_bakedchar glyphs[CODEPOINT_COUNT];
 };
 
 struct Font {
@@ -39,7 +40,7 @@ struct Font {
     void* ttf_data  = null;
 
     stbtt_fontinfo info;
-    Array<Glyph> glyphs;
+    Array<Baked_Font> baked;
 };
 
 Font load_font(utf8* file_name) {
@@ -111,88 +112,85 @@ void draw_text(Font* font, f32 size, utf8* text, f32 r, f32 g, f32 b, f32 a) {
         layout_position.y -= get_text_height(font, size);
     }
     
-    f32 position_x = 0.0f;
-    f32 position_y = 0.0f;
+    Baked_Font* baked_font = null;
+    for_each (Baked_Font* it, &font->baked) {
+        if (it->size != size) continue;
+
+        baked_font = it;
+        break;
+    }
+
+    if (!baked_font) {
+        baked_font = next(&font->baked);
+        baked_font->size = size;
+
+        u32 temp_start = temp_memory_allocated;
+        void* bitmap = temp_alloc(BAKED_FONT_BITMAP_WIDTH * BAKED_FONT_BITMAP_HEIGHT);
+        
+        i32 result = stbtt_BakeFontBitmap(
+            (u8*) font->ttf_data, 
+            0, 
+            size, 
+            (u8*) bitmap, 
+            BAKED_FONT_BITMAP_WIDTH, 
+            BAKED_FONT_BITMAP_HEIGHT, 
+            CODEPOINT_START, 
+            CODEPOINT_COUNT, 
+            baked_font->glyphs);
+
+        assert(result > 0);
+
+        glGenTextures(1, &baked_font->texture_id);
+        glBindTexture(GL_TEXTURE_2D, baked_font->texture_id);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, BAKED_FONT_BITMAP_WIDTH, BAKED_FONT_BITMAP_HEIGHT, 0, GL_ALPHA, GL_UNSIGNED_BYTE, bitmap);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        temp_memory_allocated = temp_start;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, baked_font->texture_id);
+    glBegin(GL_QUADS);
+
+    glColor4f(r, g, b, a);
+
+    f32 position_x = 0;
+    f32 position_y = 0;
 
     while (*text) {
         utf32 codepoint = *text;
+        if (CODEPOINT_START <= codepoint && codepoint < CODEPOINT_START + CODEPOINT_COUNT) {
+            stbtt_aligned_quad baked_quad;
+            
+            stbtt_GetBakedQuad(
+                baked_font->glyphs, 
+                BAKED_FONT_BITMAP_WIDTH, 
+                BAKED_FONT_BITMAP_HEIGHT, 
+                codepoint - CODEPOINT_START, 
+                &position_x, 
+                &position_y, 
+                &baked_quad, 
+                1);
 
-        if (codepoint != ' ') {
-            Glyph* glyph = null;
-            for_each (Glyph* it, &font->glyphs) {
-                if (it->codepoint != codepoint) continue;
-                if (it->size != size)           continue;
+            glTexCoord2f(baked_quad.s0, baked_quad.t0);
+            glVertex2f(baked_quad.x0, -baked_quad.y0);
 
-                glyph = it;
-                break;
-            }
+            glTexCoord2f(baked_quad.s1, baked_quad.t0);
+            glVertex2f(baked_quad.x1, -baked_quad.y0);
 
-            if (!glyph) {
-                glyph = next(&font->glyphs);
+            glTexCoord2f(baked_quad.s1, baked_quad.t1);
+            glVertex2f(baked_quad.x1, -baked_quad.y1);
 
-                glyph->codepoint = codepoint;
-                glyph->size      = size;
-
-                i32 x1, y1, x2, y2;
-                stbtt_GetCodepointBitmapBox(&font->info, codepoint, font_scale, font_scale, &x1, &y1, &x2, &y2);
-
-                glyph->x1 = x1;
-                glyph->y1 = y1;
-                glyph->x2 = x2;
-                glyph->y2 = y2;
-
-                u32 width  = x2 - x1;
-                u32 height = y2 - y1;
-
-                void* bitmap = temp_alloc(width * height);
-                stbtt_MakeCodepointBitmap(&font->info, (u8*) bitmap, width, height, width, font_scale, font_scale, codepoint);
-
-                glGenTextures(1, &glyph->texture_id);
-
-                glBindTexture(GL_TEXTURE_2D, glyph->texture_id);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-                
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, bitmap);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-                glBindTexture(GL_TEXTURE_2D, 0);
-            }
-
-            glBindTexture(GL_TEXTURE_2D, glyph->texture_id);
-            glBegin(GL_QUADS);
-
-            glColor4f(r, g, b, a);
-
-            glTexCoord2f(0.0f, 0.0f);
-            glVertex2f(position_x + glyph->x1, -(position_y + glyph->y1));
-
-            glTexCoord2f(1.0f, 0.0f);
-            glVertex2f(position_x + glyph->x2, -(position_y + glyph->y1));
-
-            glTexCoord2f(1.0f, 1.0f);
-            glVertex2f(position_x + glyph->x2, -(position_y + glyph->y2));
-
-            glTexCoord2f(0.0f, 1.0f);
-            glVertex2f(position_x + glyph->x1, -(position_y + glyph->y2));
-
-            glEnd();
-            glBindTexture(GL_TEXTURE_2D, 0);
+            glTexCoord2f(baked_quad.s0, baked_quad.t1);
+            glVertex2f(baked_quad.x0, -baked_quad.y1);
         }
 
-        i32 advance_width, left_side_bearing;
-        stbtt_GetCodepointHMetrics(&font->info, codepoint, &advance_width, &left_side_bearing);
-
-        position_x += advance_width * font_scale;
-        
-        utf32 next_codepoint = *(text + 1);
-        if (next_codepoint) {
-            f32 kern_advance = stbtt_GetCodepointKernAdvance(&font->info, codepoint, next_codepoint);
-            position_x += kern_advance * font_scale;
-        }
-        
         text += 1;
     }
+
+    glEnd();
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 struct Sprite {
