@@ -351,7 +351,3 @@ void remove(Bucket_Array<type, size>* bucket_array, type* element) {
 
     assert(was_removed);
 }
-
-struct Table {
-
-};
