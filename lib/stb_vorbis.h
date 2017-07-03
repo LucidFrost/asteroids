@@ -877,16 +877,16 @@ static int error(vorb *f, enum STBVorbisError e)
 
 #define array_size_required(count,size)  (count*(sizeof(void *)+(size)))
 
-#define temp_alloc(f,size)              (f->alloc.alloc_buffer ? setup_temp_malloc(f,size) : alloca(size))
+#define stb_temp_alloc(f,size)              (f->alloc.alloc_buffer ? setup_temp_malloc(f,size) : alloca(size))
 #ifdef dealloca
 #define temp_free(f,p)                  (f->alloc.alloc_buffer ? 0 : dealloca(size))
 #else
 #define temp_free(f,p)                  0
 #endif
-#define temp_alloc_save(f)              ((f)->temp_offset)
-#define temp_alloc_restore(f,p)         ((f)->temp_offset = (p))
+#define stb_temp_alloc_save(f)              ((f)->temp_offset)
+#define stb_temp_alloc_restore(f,p)         ((f)->temp_offset = (p))
 
-#define temp_block_array(f,count,size)  make_block_array(temp_alloc(f,array_size_required(count,size)), count, size)
+#define temp_block_array(f,count,size)  make_block_array(stb_temp_alloc(f,array_size_required(count,size)), count, size)
 
 // given a sufficiently large block of memory, make an array of pointers to subblocks of it
 static void *make_block_array(void *mem, int count, int size)
@@ -2049,7 +2049,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
    int classwords = f->codebooks[c].dimensions;
    int n_read = r->end - r->begin;
    int part_read = n_read / r->part_size;
-   int temp_alloc_point = temp_alloc_save(f);
+   int stb_temp_alloc_point = stb_temp_alloc_save(f);
    #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
    uint8 ***part_classdata = (uint8 ***) temp_block_array(f,f->channels, part_read * sizeof(**part_classdata));
    #else
@@ -2256,7 +2256,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
    #else
    temp_free(f,classifications);
    #endif
-   temp_alloc_restore(f,temp_alloc_point);
+   stb_temp_alloc_restore(f,stb_temp_alloc_point);
 }
 
 
@@ -2608,8 +2608,8 @@ static void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
    int n2 = n >> 1, n4 = n >> 2, n8 = n >> 3, l;
    int ld;
    // @OPTIMIZE: reduce register pressure by using fewer variables?
-   int save_point = temp_alloc_save(f);
-   float *buf2 = (float *) temp_alloc(f, n2 * sizeof(*buf2));
+   int save_point = stb_temp_alloc_save(f);
+   float *buf2 = (float *) stb_temp_alloc(f, n2 * sizeof(*buf2));
    float *u=NULL,*v=NULL;
    // twiddle factors
    float *A = f->A[blocktype];
@@ -2902,7 +2902,7 @@ static void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
    }
 
    temp_free(f,buf2);
-   temp_alloc_restore(f,save_point);
+   stb_temp_alloc_restore(f,save_point);
 }
 
 #if 0

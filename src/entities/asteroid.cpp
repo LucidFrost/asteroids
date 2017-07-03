@@ -43,11 +43,7 @@ void set_asteroid_size(Asteroid* asteroid, Asteroid_Size size) {
     asteroid->entity->collider_radius = asteroid->entity->sprite_size / 2.0f;
 }
 
-void on_create(Asteroid* asteroid) {
-    asteroid->entity->orientation = get_random_between(0.0f, 360.0f);
-}
-
-void on_destroy(Asteroid* asteroid) {
+void spawn_children(Asteroid* asteroid) {
     switch (asteroid->size) {
         case Asteroid_Size::SMALL: {
             break;
@@ -81,9 +77,17 @@ void on_destroy(Asteroid* asteroid) {
     play_sound(&kill_02_sound);
 }
 
+void on_create(Asteroid* asteroid) {
+    asteroid->entity->orientation = get_random_between(0.0f, 360.0f);
+}
+
+void on_destroy(Asteroid* asteroid) {
+    
+}
+
 void on_update(Asteroid* asteroid) {
-    asteroid->entity->position    += asteroid->velocity * time.delta;
-    asteroid->entity->orientation += asteroid->rotation_speed * time.delta;
+    asteroid->entity->position    += asteroid->velocity * timers.delta;
+    asteroid->entity->orientation += asteroid->rotation_speed * timers.delta;
 }
 
 void on_collision(Asteroid* asteroid, Entity* them) {

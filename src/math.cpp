@@ -18,6 +18,39 @@ f32 lerp(f32 from, f32 step, f32 to) {
     return ((1.0f - step) * from) + (step * to);
 }
 
+void seed_random() {
+    srand((u32) time(null));
+}
+
+u32 get_random_u32() {
+    u32 result = rand();
+    return result;
+}
+
+u32 get_random_out_of(u32 count) {
+    return get_random_u32() % count;
+}
+
+bool get_random_chance(u32 chance) {
+    return get_random_out_of(chance) == chance - 1;
+}
+
+f32 get_random_unilateral() {
+    return (f32) get_random_u32() / (f32) RAND_MAX;
+}
+
+f32 get_random_bilateral() {
+    return (2.0f * get_random_unilateral()) - 1.0f;
+}
+
+f32 get_random_between(f32 min, f32 max) {
+    return lerp(min, get_random_unilateral(), max);
+}
+
+i32 get_random_between(i32 min, i32 max) {
+    return min + ((i32) get_random_u32() % ((max + 1) - min));
+}
+
 struct Vector2 {
     f32 x = 0.0f;
     f32 y = 0.0f;
@@ -98,6 +131,64 @@ Vector2 get_direction(f32 angle) {
 
 f32 get_angle(Vector2 direction) {
     return to_degrees(atan2f(direction.y, direction.x)) - 90.0f;
+}
+
+struct Rectangle2 {
+    f32 x1 = 0.0f;
+    f32 y1 = 0.0f;
+    f32 x2 = 0.0f;
+    f32 y2 = 0.0f;
+};
+
+Rectangle2 make_rectangle2(f32 x1, f32 y1, f32 x2, f32 y2) {
+    Rectangle2 rectangle2;
+
+    rectangle2.x1 = x1;
+    rectangle2.y1 = y1;
+    rectangle2.x2 = x2;
+    rectangle2.y2 = y2;
+
+    return rectangle2;
+}
+
+Rectangle2 make_rectangle2(Vector2 position, f32 width, f32 height, bool center = false) {
+    if (center) {
+        position.x -= width  / 2.0f;
+        position.y -= height / 2.0f;
+    }
+
+    return make_rectangle2(position.x, position.y, position.x + width, position.y + height);
+}
+
+bool contains(Rectangle2 rectangle2, Vector2 position) {
+    if (position.x < rectangle2.x1) return false;
+    if (position.y < rectangle2.y1) return false;
+    if (position.x > rectangle2.x2) return false;
+    if (position.y > rectangle2.y2) return false;
+
+    return true;
+}
+
+struct Circle {
+    Vector2 position;
+    f32 radius = 0.0f;
+};
+
+Circle make_circle(Vector2 position, f32 radius) {
+    Circle circle;
+
+    circle.position = position;
+    circle.radius   = radius;
+
+    return circle;
+}
+
+bool contains(Circle circle, Vector2 position) {
+    return get_length(position - circle.position) <= circle.radius;
+}
+
+bool intersects(Circle circle_a, Circle circle_b) {
+    return get_length(circle_b.position - circle_a.position) <= circle_a.radius + circle_b.radius;
 }
 
 struct Matrix4 {
@@ -358,4 +449,11 @@ Matrix4 make_inverse_matrix(Matrix4 matrix) {
     inverse._44 *= determinant;
 
     return inverse;
+}
+
+Vector2 unproject(u32 window_x, u32 window_y, u32 window_width, u32 window_height, Matrix4 projection) {
+    f32 normalized_x = ((2.0f * window_x) / window_width) - 1.0f;
+    f32 normalized_y = 1.0f - ((2.0f * window_y) / window_height);
+
+    return make_inverse_matrix(projection) * make_vector2(normalized_x, normalized_y);
 }

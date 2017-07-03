@@ -1,10 +1,35 @@
+typedef void* Alloc(u32 size);
+typedef void  Dealloc(void* memory);
+
+struct Allocator {
+    Alloc*   alloc   = null;
+    Dealloc* dealloc = null;
+};
+
+Allocator default_allocator;
+
+Allocator make_allocator(Alloc* alloc, Dealloc* dealloc) {
+    Allocator allocator;
+
+    allocator.alloc   = alloc;
+    allocator.dealloc = dealloc;
+
+    return allocator;
+}
+
+void* operator new(size_t size, void* memory) {
+    return memory;
+}
+
+#define construct(type, memory) new (memory) type
+
 #define for_each(element, in)                                   \
     for (auto iterator = make_iterator(in); iterator.has_next;) \
         if (element = get_next(&iterator))
 
 template<typename type>
 struct Array {
-    Allocator* allocator = null;
+    Allocator* allocator = &default_allocator;
     
     u32 capacity = 0;
     u32 count    = 0;
@@ -20,18 +45,15 @@ void allocate(Array<type>* array, u32 new_capacity) {
     type* old_elements = array->elements;
     array->capacity = new_capacity;
 
-    push_allocator(array->allocator); {
-        array->elements = new type[array->capacity];
-
-        if (old_elements) {
-            for (u32 i = 0; i < array->count; i++) {
-                array->elements[i] = old_elements[i];
-            }
-
-            delete[] old_elements;
+    array->elements = (type*) array->allocator->alloc(array->capacity * size_of(type));
+    
+    if (old_elements) {
+        for (u32 i = 0; i < array->count; i++) {
+            array->elements[i] = old_elements[i];
         }
+
+        array->allocator->dealloc(old_elements);
     }
-    pop_allocator();
 }
 
 template<typename type>
@@ -39,12 +61,9 @@ void free(Array<type>* array) {
     array->capacity = 0;
     array->count    = 0;
 
-    push_allocator(array->allocator); {
-        if (array->elements) {
-            delete[] array->elements;
-        }
+    if (array->elements) {
+        array->allocator->dealloc(array->elements);
     }
-    pop_allocator();
 }
 
 template<typename type>
@@ -171,7 +190,7 @@ struct Bucket {
 
 template<typename type, u32 size>
 struct Bucket_Array {
-    Allocator* allocator = null;
+    Allocator* allocator = &default_allocator;
     
     Array<Bucket<type, size>*> buckets;
     u32 count = 0;
@@ -204,11 +223,13 @@ Bucket_Locator add(Bucket_Array<type, size>* bucket_array, type element) {
     }
 
     if (array_index == -1) {
-        push_allocator(bucket_array->allocator); {
-            array_index  = add(&bucket_array->buckets, new Bucket<type, size>);
-            bucket_index = 0;
-        }
-        pop_allocator();
+        // @note: There is a bug passing this type through the macro size_of...
+
+        Bucket<type, size>* bucket = (Bucket<type, size>*) bucket_array->allocator->alloc(sizeof(Bucket<type, size>));
+        bucket = new (bucket) Bucket<type, size>;
+
+        array_index  = add(&bucket_array->buckets, bucket);
+        bucket_index = 0;
     }
 
     assert(array_index  >= 0);
@@ -258,15 +279,12 @@ type* next(Bucket_Array<type, size>* bucket_array) {
 
 template<typename type, u32 size>
 void free(Bucket_Array<type, size>* bucket_array) {
-    push_allocator(bucket_array->allocator); {
-        for (u32 i = 0; i < bucket_array->buckets.count; i++) {
-            Bucket<type, size>* bucket = bucket_array->buckets[i];
-            delete bucket;
-        }
-
-        free(&bucket_array->buckets);
+    for (u32 i = 0; i < bucket_array->buckets.count; i++) {
+        Bucket<type, size>* bucket = bucket_array->buckets[i];
+        bucket_array->allocator->dealloc(bucket);
     }
-    pop_allocator();
+
+    free(&bucket_array->buckets);
 }
 
 template<typename type, u32 size>

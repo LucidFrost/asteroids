@@ -1,6 +1,3 @@
-#include <gl/gl.h>
-#pragma comment(lib, "opengl32.lib")
-
 #pragma warning(push)
     #pragma warning(disable: 4244)
     #pragma warning(disable: 4456)
@@ -28,19 +25,63 @@
     #include "../lib/stb_truetype.h"
 #pragma warning(pop)
 
-void set_projection(Matrix4* projection) {
+struct Color {
+    f32 r = 0.0f;
+    f32 g = 0.0;
+    f32 b = 0.0f;
+    f32 a = 1.0f;
+};
+
+Color make_color(f32 r, f32 g, f32 b, f32 a = 1.0f) {
+    Color color;
+
+    color.r = r;
+    color.g = g;
+    color.b = b;
+    color.a = a;
+
+    return color;
+}
+
+void set_projection(Matrix4 projection) {
     glMatrixMode(GL_PROJECTION);
-    glLoadMatrixf((f32*) projection);
+    glLoadMatrixf((f32*) &projection);
 }
 
-void set_transform(Matrix4* transform) {
+void set_transform(Matrix4 transform) {
     glMatrixMode(GL_MODELVIEW);
-    glLoadMatrixf((f32*) transform);
+    glLoadMatrixf((f32*) &transform);
 }
 
-void set_transform(Vector2 position, f32 orientation = 0.0, f32 scale = 1.0f) {
-    Matrix4 transform = make_transform_matrix(position, orientation, scale);
-    set_transform(&transform);
+void draw_rectangle(Rectangle2 rectangle, Color color, bool fill = true) {
+    set_transform(make_identity_matrix());
+
+    glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
+    glColor4f(color.r, color.g, color.b, color.a);
+
+    glVertex2f(rectangle.x1, rectangle.y1);
+    glVertex2f(rectangle.x2, rectangle.y1);
+    glVertex2f(rectangle.x2, rectangle.y2);
+    glVertex2f(rectangle.x1, rectangle.y2);
+
+    glEnd();
+}
+
+void draw_circle(Circle circle, Color color, bool fill = true) {
+    set_transform(make_identity_matrix());
+
+    glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
+    glColor4f(color.r, color.g, color.b, color.a);
+
+    for (u32 i = 0; i < 360; i++) {
+        f32 theta = to_radians((f32) i);
+        
+        glVertex2f(
+            circle.position.x + (cosf(theta) * circle.radius), 
+            circle.position.y + (sinf(theta) * circle.radius));
+    }
+
+    glEnd();
 }
 
 const utf32 CODEPOINT_START = 32;
@@ -57,6 +98,8 @@ struct Baked_Font {
 };
 
 struct Font {
+    bool is_valid = false;
+
     utf8* file_name = null;
     void* ttf_data  = null;
 
@@ -69,30 +112,22 @@ Font load_font(utf8* file_name) {
     font.file_name = file_name;
 
     font.ttf_data = read_entire_file(font.file_name);
-    assert(font.ttf_data);
+    if (font.ttf_data) {
+        stbtt_InitFont(&font.info, (u8*) font.ttf_data, 0);
 
-    stbtt_InitFont(&font.info, (u8*) font.ttf_data, 0);
+        printf("Loaded font '%s'\n", font.file_name);
+        font.is_valid = true;
+    }
+    else {
+        printf("Failed to load font '%s'\n", font.file_name);
+    }
 
-    printf("Loaded font '%s'\n", font.file_name);
     return font;
 }
 
-Vector2 layout_position;
-bool is_using_layout;
-
-void begin_layout(f32 x, f32 y) {
-    assert(!is_using_layout);
-
-    layout_position = make_vector2(x, y);
-    is_using_layout = true;
-}
-
-void end_layout() {
-    assert(is_using_layout);
-    is_using_layout = false;
-}
-
 f32 get_text_width(Font* font, f32 size, utf8* text) {
+    if (!font->is_valid) return 0.0f;
+
     f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
 
     f32 width = 0.0f;
@@ -117,6 +152,8 @@ f32 get_text_width(Font* font, f32 size, utf8* text) {
 }
 
 f32 get_text_height(Font* font, f32 size) {
+    if (!font->is_valid) return 0.0f;
+
     f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
 
     i32 ascent, descent, line_gap;
@@ -125,12 +162,9 @@ f32 get_text_height(Font* font, f32 size) {
     return (ascent - descent + line_gap) * font_scale;
 }
 
-void draw_text(Font* font, f32 size, utf8* text, f32 r, f32 g, f32 b, f32 a) {
-    if (is_using_layout) {
-        set_transform(layout_position);
-        layout_position.y -= get_text_height(font, size);
-    }
-    
+void draw_text(Font* font, f32 size, utf8* text, Color color = make_color(1.0f, 1.0f, 1.0f)) {
+    if (!font->is_valid) return;
+
     Baked_Font* baked_font = null;
     for_each (Baked_Font* it, &font->baked) {
         if (it->size != size) continue;
@@ -143,7 +177,7 @@ void draw_text(Font* font, f32 size, utf8* text, f32 r, f32 g, f32 b, f32 a) {
         baked_font = next(&font->baked);
         baked_font->size = size;
 
-        u32 temp_start = temp_memory_allocated;
+        u32 temp_start = platform.temp_memory_allocated;
         void* bitmap = temp_alloc(BAKED_FONT_BITMAP_WIDTH * BAKED_FONT_BITMAP_HEIGHT);
         
         i32 result = stbtt_BakeFontBitmap(
@@ -166,19 +200,20 @@ void draw_text(Font* font, f32 size, utf8* text, f32 r, f32 g, f32 b, f32 a) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
         glBindTexture(GL_TEXTURE_2D, 0);
-        temp_memory_allocated = temp_start;
+        platform.temp_memory_allocated = temp_start;
     }
 
     glBindTexture(GL_TEXTURE_2D, baked_font->texture_id);
     glBegin(GL_QUADS);
 
-    glColor4f(r, g, b, a);
+    glColor4f(color.r, color.g, color.b, color.a);
 
     f32 position_x = 0;
     f32 position_y = 0;
 
-    while (*text) {
-        utf32 codepoint = *text;
+    utf8* cursor = text;
+    while (*cursor) {
+        utf32 codepoint = *cursor;
         if (CODEPOINT_START <= codepoint && codepoint < CODEPOINT_START + CODEPOINT_COUNT) {
             stbtt_aligned_quad baked_quad;
             
@@ -205,14 +240,18 @@ void draw_text(Font* font, f32 size, utf8* text, f32 r, f32 g, f32 b, f32 a) {
             glVertex2f(baked_quad.x0, -baked_quad.y1);
         }
 
-        text += 1;
+        cursor += 1;
     }
 
     glEnd();
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // draw_rectangle(get_text_width(font, size, text), get_text_height(font, size), 0.0f, 1.0f, 0.0f, 1.0f, false, false);
 }
 
 struct Sprite {
+    bool is_valid = false;
+
     u32 texture = 0;
     u32 width   = 0;
     u32 height  = 0;
@@ -223,24 +262,34 @@ Sprite load_sprite(utf8* file_name) {
     Sprite sprite;
 
     u8* image = stbi_load(file_name, (i32*) &sprite.width, (i32*) &sprite.height, null, 4);
-    assert(image);
-
     sprite.aspect = (f32) sprite.width / (f32) sprite.height;
 
-    glGenTextures(1, &sprite.texture);
-    glBindTexture(GL_TEXTURE_2D, sprite.texture);
+    if (image) {
+        glGenTextures(1, &sprite.texture);
+        glBindTexture(GL_TEXTURE_2D, sprite.texture);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sprite.width, sprite.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sprite.width, sprite.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
-    stbi_image_free(image);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        stbi_image_free(image);
 
-    printf("Loaded sprite '%s'\n", file_name);
+        printf("Loaded sprite '%s'\n", file_name);
+        sprite.is_valid = true;
+    }
+    else {
+        printf("Failed to load sprite '%s'\n", file_name);
+    }
+
     return sprite;
 }
 
 void draw_sprite(Sprite* sprite, f32 width, f32 height, bool center = true) {
+    if (!sprite->is_valid) {
+        draw_rectangle(make_rectangle2(make_vector2(), 1.0f, 1.0f, center), make_color(1.0f, 1.0f, 1.0f), true);
+        return;
+    }
+
     glBindTexture(GL_TEXTURE_2D, sprite->texture);
     glBegin(GL_QUADS);
 
@@ -270,40 +319,11 @@ void draw_sprite(Sprite* sprite, f32 width, f32 height, bool center = true) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void draw_rectangle(f32 width, f32 height, f32 r, f32 g, f32 b, f32 a, bool center = true, bool fill = true) {
-    glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
-    glColor4f(r, g, b, a);
-
-    f32 x = 0.0f;
-    f32 y = 0.0f;
-
-    if (center) {
-        x -= width  / 2.0f;
-        y -= height / 2.0f;
-    }
-
-    glVertex2f(x,         y);
-    glVertex2f(x + width, y);
-    glVertex2f(x + width, y + height);
-    glVertex2f(x,         y + height);
-
-    glEnd();
-}
-
-void draw_circle(f32 radius, f32 r, f32 g, f32 b, f32 a, bool fill = true) {
-    glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
-    glColor4f(r, g, b, a);
-
-    for (u32 i = 0; i < 360; i++) {
-        f32 theta = to_radians((f32) i);
-        glVertex2f(cosf(theta) * radius, sinf(theta) * radius);
-    }
-
-    glEnd();
-}
-
 Font font_arial;
 Font font_future;
+Font font_starjedi;
+Font font_moonhouse;
+Font font_nasalization;
 
 Sprite background_sprite;
 Sprite ship_sprite;
@@ -324,8 +344,11 @@ void init_draw() {
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    font_arial  = load_font("c:/windows/fonts/arial.ttf");
-    font_future = load_font("data/fonts/future.ttf");
+    font_arial             = load_font("c:/windows/fonts/arial.ttf");
+    font_future            = load_font("data/fonts/future.ttf");
+    font_starjedi          = load_font("data/fonts/starjedi.ttf");
+    font_moonhouse         = load_font("data/fonts/moonhouse.ttf");
+    font_nasalization      = load_font("data/fonts/nasalization-rg.ttf");
 
     background_sprite      = load_sprite("data/sprites/background.png");
     ship_sprite            = load_sprite("data/sprites/ship.png");
