@@ -1,15 +1,16 @@
-enum struct Menu_Mode {
-    NONE,
-    MAIN,
-    SCOREBOARD,
-    SETTINGS
+enum Menu_Mode {
+    MENU_MODE_NONE,
+    MENU_MODE_MAIN,
+    MENU_MODE_SHIP,
+    MENU_MODE_SCOREBOARD,
+    MENU_MODE_SETTINGS
 };
 
 Menu_Mode menu_mode;
 
-f32 title_size = 45.0f;
-f32 menu_size  = 32.0f;
-f32 padding    = 10.0f;
+f32 menu_title_size   = 45.0f;
+f32 menu_option_size  = 32.0f;
+f32 menu_padding_size = 10.0f;
 
 struct Score {
     u32 value;
@@ -56,12 +57,12 @@ Array<Score> sort_scores(Array<Score> scores) {
 }
 
 void start_menu() {
-    menu_mode = Menu_Mode::MAIN;
+    menu_mode = MENU_MODE_MAIN;
 
     if (!asteroids.count) {
         for (u32 i = 0 ; i < 4; i++) {
-            Asteroid* asteroid = create_entity(Entity_Type::ASTEROID)->asteroid;
-            set_asteroid_size(asteroid, Asteroid_Size::LARGE);
+            Asteroid* asteroid = create_entity(ENTITY_TYPE_ASTEROID)->asteroid;
+            set_asteroid_size(asteroid, ASTEROID_SIZE_LARGE);
 
             asteroid->entity->position = make_vector2(
                 get_random_between(world_left, world_right), 
@@ -79,12 +80,21 @@ void stop_menu() {
 void update_menu() {
     set_projection(gui_projection);
 
+    if (input.key_escape.down) {
+        menu_mode = MENU_MODE_MAIN;
+    }
+
     switch (menu_mode) {
-        case Menu_Mode::MAIN: {
+        case MENU_MODE_MAIN: {
+            if (input.key_escape.down) {
+                platform.should_quit = true;
+            }
+
             utf8* title_text = "Asteroids!";
 
             utf8* menu_options[] = {
                 "Play",
+                "Ship",
                 "Scoreboard",
                 "Settings",
                 "Quit"
@@ -92,29 +102,29 @@ void update_menu() {
 
             f32 total_height = 0.0f;
             
-            total_height += get_text_height(&font_nasalization, title_size);
-            total_height += padding;
+            total_height += get_text_height(&font_nasalization, menu_title_size);
+            total_height += menu_padding_size;
 
             for (u32 i = 0; i < count_of(menu_options); i++) {
-                total_height += get_text_height(&font_nasalization, menu_size);
-                total_height += padding;
+                total_height += get_text_height(&font_nasalization, menu_option_size);
+                total_height += menu_padding_size;
             }
 
             Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, title_size, title_text) / 2.0f), 
+                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
                 (platform.window_height / 2.0f) + (total_height / 2.0f));
 
             set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, title_size, title_text);
+            draw_text(&font_nasalization, menu_title_size, title_text);
 
-            layout.y -= get_text_height(&font_nasalization, title_size);
-            layout.y -= padding;
+            layout.y -= get_text_height(&font_nasalization, menu_title_size);
+            layout.y -= menu_padding_size;
 
             for (u32 i = 0; i < count_of(menu_options); i++) {
                 utf8* menu_option = menu_options[i];
 
-                f32 width  = get_text_width(&font_nasalization, menu_size, menu_option);
-                f32 height = get_text_height(&font_nasalization, menu_size);
+                f32 width  = get_text_width(&font_nasalization, menu_option_size, menu_option);
+                f32 height = get_text_height(&font_nasalization, menu_option_size);
 
                 layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
 
@@ -128,11 +138,15 @@ void update_menu() {
                     if (input.mouse_left.down) {
                         switch (i) {
                             case 0: {
-                                switch_game_mode(Game_Mode::PLAY);
+                                switch_game_mode(GAME_MODE_PLAY);
                                 break;
                             }
                             case 1: {
-                                menu_mode = Menu_Mode::SCOREBOARD;
+                                menu_mode = MENU_MODE_SHIP;
+                                break;
+                            }
+                            case 2: {
+                                menu_mode = MENU_MODE_SCOREBOARD;
 
                                 Array<Score> scores;
                                 scores.allocator = &temp_allocator;
@@ -169,11 +183,11 @@ void update_menu() {
 
                                 break;
                             }
-                            case 2: {
-                                menu_mode = Menu_Mode::SETTINGS;
+                            case 3: {
+                                menu_mode = MENU_MODE_SETTINGS;
                                 break;
                             }
-                            case 3: {
+                            case 4: {
                                 platform.should_quit = true;
                                 break;
                             }
@@ -182,79 +196,63 @@ void update_menu() {
                 }
 
                 set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_size, menu_option, color);
+                draw_text(&font_nasalization, menu_option_size, menu_option, color);
 
                 layout.y -= height;
-                layout.y -= padding;
+                layout.y -= menu_padding_size;
             }
 
             break;
         }
-        case Menu_Mode::SCOREBOARD: {
-            utf8* title_text = "Scoreboard";
+        case MENU_MODE_SHIP: {
+            utf8* title_text = "Ship";
             
             utf8* actions[] = {
                 "Back",
-                "Clear"
+                "Accept"
             };
 
             f32 total_height = 0.0f;
 
-            total_height += get_text_height(&font_nasalization, title_size);
-            total_height += padding;
+            total_height += get_text_height(&font_nasalization, menu_title_size);
+            total_height += menu_padding_size;
 
-            for (u32 i = 0; i < count_of(high_scores); i++) {
-                total_height += get_text_height(&font_nasalization, menu_size);
-                total_height += padding;
-            }
+            total_height += 200.0f;
 
-            total_height += get_text_height(&font_nasalization, menu_size);
-            total_height += padding;
+            total_height += get_text_height(&font_nasalization, menu_option_size);
+            total_height += menu_padding_size;
 
             Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, title_size, title_text) / 2.0f), 
+                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
                 (platform.window_height / 2.0f) + (total_height / 2.0f));
 
             set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, title_size, title_text);
+            draw_text(&font_nasalization, menu_title_size, title_text);
 
-            layout.y -= get_text_height(&font_nasalization, title_size);
-            layout.y -= padding;
+            layout.x = platform.window_width  / 2.0f;
+            layout.y = platform.window_height / 2.0f;
 
-            for (u32 i = 0; i < count_of(high_scores); i++) {
-                utf8* text = null;
-                if (high_scores[i].value) {
-                    time_t time_value = (time_t) high_scores[i].time;
-                    tm* gm_time = gmtime(&time_value);
+            set_transform(make_transform_matrix(layout));
+            draw_sprite(get_ship_sprite(SHIP_COLOR_RED, SHIP_TYPE_2), 150.0f);
 
-                    u32 month = gm_time->tm_mon + 1;
-                    u32 day   = gm_time->tm_mday;
-                    u32 year  = 1900 + gm_time->tm_year;
+            layout.x -= 150.0f;
 
-                    text = format_string("%u. %u (%u/%u/%u)", i + 1, high_scores[i].value, month, day, year);
-                }
-                else {
-                    text = format_string("%u. ---", i + 1);
-                }
+            set_transform(make_transform_matrix(layout));
+            draw_text(&font_nasalization, menu_title_size, "<");
 
-                f32 width  = get_text_width(&font_nasalization, menu_size, text);
-                f32 height = get_text_height(&font_nasalization, menu_size);
+            layout.x += 300.0f;
 
-                layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
+            set_transform(make_transform_matrix(layout));
+            draw_text(&font_nasalization, menu_title_size, ">");
 
-                set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_size, text);
-
-                layout.y -= height;
-                layout.y -= padding;
-            }
+            layout.y -= 150.0f;
 
             f32 total_width = 0.0f;
             for (u32 i = 0; i < count_of(actions); i++) {
                 utf8* action = actions[i];
                 
-                total_width += get_text_width(&font_nasalization, menu_size, action);
-                total_width += padding;
+                total_width += get_text_width(&font_nasalization, menu_option_size, action);
+                total_width += menu_padding_size * 2.0f;
             }
 
             layout.x = (platform.window_width / 2.0f) - (total_width / 2.0f);
@@ -262,8 +260,8 @@ void update_menu() {
             for (u32 i = 0; i < count_of(actions); i++) {
                 utf8* action = actions[i];
 
-                f32 width  = get_text_width(&font_nasalization, menu_size, action);
-                f32 height = get_text_height(&font_nasalization, menu_size);
+                f32 width  = get_text_width(&font_nasalization, menu_option_size, action);
+                f32 height = get_text_height(&font_nasalization, menu_option_size);
 
                 Rectangle2 dimensions = make_rectangle2(layout, width, height);
                 Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, gui_projection);
@@ -275,7 +273,117 @@ void update_menu() {
                     if (input.mouse_left.down) {
                         switch (i) {
                             case 0: {
-                                menu_mode = Menu_Mode::MAIN;
+                                menu_mode = MENU_MODE_MAIN;
+                                break;
+                            }
+                            case 1: {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                set_transform(make_transform_matrix(layout));
+                draw_text(&font_nasalization, menu_option_size, action, color);
+
+                layout.x += width;
+                layout.x += menu_padding_size * 2.0f;
+            }
+
+            break;
+        }
+        case MENU_MODE_SCOREBOARD: {
+            utf8* title_text = "Scoreboard";
+            
+            utf8* actions[] = {
+                "Back",
+                "Clear"
+            };
+
+            f32 total_height = 0.0f;
+
+            total_height += get_text_height(&font_nasalization, menu_title_size);
+            total_height += menu_padding_size;
+
+            for (u32 i = 0; i < count_of(high_scores); i++) {
+                total_height += get_text_height(&font_nasalization, menu_option_size);
+                total_height += menu_padding_size;
+            }
+
+            total_height += get_text_height(&font_nasalization, menu_option_size);
+            total_height += menu_padding_size;
+
+            Vector2 layout = make_vector2(
+                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
+                (platform.window_height / 2.0f) + (total_height / 2.0f));
+
+            set_transform(make_transform_matrix(layout));
+            draw_text(&font_nasalization, menu_title_size, title_text);
+
+            layout.y -= get_text_height(&font_nasalization, menu_title_size);
+            layout.y -= menu_padding_size;
+
+            for (u32 i = 0; i < count_of(high_scores); i++) {
+                if (high_scores[i].value) {
+                    layout.x = (platform.window_width / 2.0f) - 200.0f;
+
+                    set_transform(make_transform_matrix(layout));
+                    draw_text(&font_nasalization, menu_option_size, format_string("%u.", i + 1));
+
+                    utf8* text = format_string("%u", high_scores[i].value);
+
+                    f32 width = get_text_width(&font_nasalization, menu_option_size, text);
+                    layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
+
+                    set_transform(make_transform_matrix(layout));
+                    draw_text(&font_nasalization, menu_option_size, text);
+
+                    time_t time_value = (time_t) high_scores[i].time;
+                    tm* gm_time = gmtime(&time_value);
+
+                    u32 month = gm_time->tm_mon + 1;
+                    u32 day   = gm_time->tm_mday;
+                    u32 year  = 1900 + gm_time->tm_year;
+
+                    text = format_string("%u/%u/%u", month, day, year);
+
+                    layout.x = (platform.window_width / 2.0f) + 150.0f;
+
+                    set_transform(make_transform_matrix(layout));
+                    draw_text(&font_nasalization, menu_option_size, text);                    
+                }
+
+                layout.y -= get_text_height(&font_nasalization, menu_option_size);
+                layout.y -= menu_padding_size;
+            }
+
+            f32 total_width = 0.0f;
+            for (u32 i = 0; i < count_of(actions); i++) {
+                utf8* action = actions[i];
+                
+                total_width += get_text_width(&font_nasalization, menu_option_size, action);
+                total_width += menu_padding_size * 2.0f;
+            }
+
+            layout.x = (platform.window_width / 2.0f) - (total_width / 2.0f);
+
+            for (u32 i = 0; i < count_of(actions); i++) {
+                utf8* action = actions[i];
+
+                f32 width  = get_text_width(&font_nasalization, menu_option_size, action);
+                f32 height = get_text_height(&font_nasalization, menu_option_size);
+
+                Rectangle2 dimensions = make_rectangle2(layout, width, height);
+                Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, gui_projection);
+
+                Color color = make_color(1.0f, 1.0f, 1.0f);
+                if (contains(dimensions, world_position)) {
+                    color = make_color(1.0f, 1.0f, 0.0f);
+
+                    if (input.mouse_left.down) {
+                        switch (i) {
+                            case 0: {
+                                menu_mode = MENU_MODE_MAIN;
                                 break;
                             }
                             case 1: {
@@ -296,15 +404,15 @@ void update_menu() {
                 }
 
                 set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_size, action, color);
+                draw_text(&font_nasalization, menu_option_size, action, color);
 
                 layout.x += width;
-                layout.x += padding;
+                layout.x += menu_padding_size * 2.0f;
             }
 
             break;
         }
-        case Menu_Mode::SETTINGS: {
+        case MENU_MODE_SETTINGS: {
             utf8* title_text = "Settings";
 
             utf8* menu_options[] = {
@@ -314,29 +422,29 @@ void update_menu() {
 
             f32 total_height = 0.0f;
 
-            total_height += get_text_height(&font_nasalization, title_size);
-            total_height += padding;
+            total_height += get_text_height(&font_nasalization, menu_title_size);
+            total_height += menu_padding_size;
 
             for (u32 i = 0; i < count_of(menu_options); i++) {
-                total_height += get_text_height(&font_nasalization, menu_size);
-                total_height += padding;
+                total_height += get_text_height(&font_nasalization, menu_option_size);
+                total_height += menu_padding_size;
             }
 
             Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, title_size, title_text) / 2.0f), 
+                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
                 (platform.window_height / 2.0f) + (total_height / 2.0f));
 
             set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, title_size, title_text);
+            draw_text(&font_nasalization, menu_title_size, title_text);
 
-            layout.y -= get_text_height(&font_nasalization, title_size);
-            layout.y -= padding;
+            layout.y -= get_text_height(&font_nasalization, menu_title_size);
+            layout.y -= menu_padding_size;
 
             for (u32 i = 0; i < count_of(menu_options); i++) {
                 utf8* menu_option = menu_options[i];
 
-                f32 width  = get_text_width(&font_nasalization, menu_size, menu_option);
-                f32 height = get_text_height(&font_nasalization, menu_size);
+                f32 width  = get_text_width(&font_nasalization, menu_option_size, menu_option);
+                f32 height = get_text_height(&font_nasalization, menu_option_size);
 
                 layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
 
@@ -361,7 +469,7 @@ void update_menu() {
                                 break;
                             }
                             case 1: {
-                                menu_mode = Menu_Mode::MAIN;
+                                menu_mode = MENU_MODE_MAIN;
                                 break;
                             }
                         }
@@ -369,10 +477,10 @@ void update_menu() {
                 }
 
                 set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_size, menu_option, color);
+                draw_text(&font_nasalization, menu_option_size, menu_option, color);
 
                 layout.y -= height;
-                layout.y -= padding;
+                layout.y -= menu_padding_size;
             }
 
             break;

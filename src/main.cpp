@@ -28,23 +28,23 @@ Matrix4 gui_projection;
 Playing_Sound* playing_music;
 f32 music_volume;
 
-enum struct Entity_Type {
-    NONE,
-    PLAYER,
-    LASER,
-    ASTEROID,
-    ENEMY
+enum Entity_Type {
+    ENTITY_TYPE_NONE,
+    ENTITY_TYPE_PLAYER,
+    ENTITY_TYPE_LASER,
+    ENTITY_TYPE_ASTEROID,
+    ENTITY_TYPE_ENEMY
 };
 
 utf8* to_string(Entity_Type entity_type) {
-    #define case(type) case Entity_Type::type: return #type
+    #define case(type) case type: return #type
 
     switch (entity_type) {
-        case(NONE);
-        case(PLAYER);
-        case(LASER);
-        case(ASTEROID);
-        case(ENEMY);
+        case(ENTITY_TYPE_NONE);
+        case(ENTITY_TYPE_PLAYER);
+        case(ENTITY_TYPE_LASER);
+        case(ENTITY_TYPE_ASTEROID);
+        case(ENTITY_TYPE_ENEMY);
     }
 
     #undef case
@@ -59,7 +59,7 @@ struct Enemy;
 
 struct Entity {
     u32 id = 0;
-    Entity_Type type = Entity_Type::NONE;
+    Entity_Type type = ENTITY_TYPE_NONE;
 
     bool needs_to_be_destroyed = false;
     
@@ -92,77 +92,12 @@ struct Entity {
     };
 };
 
-// @note: It was impossible to write gameplay code without moving the struct defines
-// out of the .cpp files. It was more complex to try and work around the lack of
-// defined types than to just seperate the structs from their files.
-
-struct Player {
-    Entity* entity = null;
-
-    Entity* left_thrust  = null;
-    Entity* right_thrust = null;
-    Entity* shield       = null;
-
-    Vector2 velocity;
-    Vector2 desired_direction;
-
-    bool has_shield   = false;
-    f32  shield_timer = 0.0f;
-
-    i32 last_mouse_x = 0;
-    i32 last_mouse_y = 0;
-
-    u32 score = 0;
-    u32 score_since_last_life = 0;
-};
-
-struct Laser {
-    Entity* entity = null;
-    u32 shooter_id = 0;
-
-    f32 lifetime = 1.0f;
-};
-
-enum struct Enemy_Mode {
-    NONE,
-    EASY,
-    HARD
-};
-
-struct Enemy {
-    Entity* entity = null;
-
-    Enemy_Mode mode = Enemy_Mode::NONE;
-    u32 score = 0;
-
-    f32 fire_rate = 0.0f;
-    f32 next_fire = 0.0f;
-
-    Vector2 velocity;
-};
-
-enum struct Asteroid_Size {
-    NONE,
-    SMALL,
-    MEDIUM,
-    LARGE
-};
-
-struct Asteroid {
-    Entity* entity = null;
-
-    Asteroid_Size size = Asteroid_Size::NONE;
-    u32 score = 0;
-
-    Vector2 velocity;
-    f32 rotation_speed = 0.0f;
-};
-
-Entity root_entity;
-
-Entity* create_entity(Entity_Type type, Entity* parent = &root_entity);
-void    destroy_entity(Entity* entity);
-Entity* find_entity(u32 id);
+#define AS_HEADER 1
+    #include "entities/asteroid.cpp"
+    #include "entities/player.cpp"
+    #include "entities/enemy.cpp"
+    #include "entities/laser.cpp"
+#undef AS_HEADER
 
 // @todo: Once the game is more settled, measure and test various values here
 // to find the most efficient bucket sizes
@@ -173,14 +108,11 @@ Bucket_Array<Laser,    16> lasers;
 Bucket_Array<Asteroid, 16> asteroids;
 Bucket_Array<Enemy,    1>  enemies;
 
-#include "entities/asteroid.cpp"
-#include "entities/player.cpp"
-#include "entities/enemy.cpp"
-#include "entities/laser.cpp"
-
+Entity root_entity;
 u32 next_entity_id;
+bool simulate_entities = true;
 
-Entity* create_entity(Entity_Type type, Entity* parent) {
+Entity* create_entity(Entity_Type type, Entity* parent = &root_entity) {
     Entity* entity = next(&entities);
 
     entity->id     = next_entity_id;
@@ -200,31 +132,31 @@ Entity* create_entity(Entity_Type type, Entity* parent) {
     }
 
     switch (entity->type) {
-        case Entity_Type::NONE: {
+        case ENTITY_TYPE_NONE: {
             break;
         }
-        case Entity_Type::PLAYER: {
+        case ENTITY_TYPE_PLAYER: {
             entity->player = next(&players);
             entity->player->entity = entity;
 
             on_create(entity->player);
             break;
         }
-        case Entity_Type::LASER: {
+        case ENTITY_TYPE_LASER: {
             entity->laser = next(&lasers);
             entity->laser->entity = entity;
 
             on_create(entity->laser);
             break;
         }
-        case Entity_Type::ASTEROID: {
+        case ENTITY_TYPE_ASTEROID: {
             entity->asteroid = next(&asteroids);
             entity->asteroid->entity = entity;
 
             on_create(entity->asteroid);
             break;
         }
-        case Entity_Type::ENEMY: {
+        case ENTITY_TYPE_ENEMY: {
             entity->enemy = next(&enemies);
             entity->enemy->entity = entity;
 
@@ -259,27 +191,31 @@ Entity* find_entity(u32 id) {
         break;
     }
 
-    assert(entity);
     return entity;
 }
 
-bool does_collide(Entity* a, Entity* b) {
-    return get_length(b->position - a->position) <= a->collider_radius + b->collider_radius;
+Vector2 get_world_position(Entity* entity) {
+    return make_vector2(entity->transform._41, entity->transform._42);
 }
 
-enum struct Game_Mode {
-    NONE,
-    MENU,
-    PLAY
+#include "entities/asteroid.cpp"
+#include "entities/player.cpp"
+#include "entities/enemy.cpp"
+#include "entities/laser.cpp"
+
+enum Game_Mode {
+    GAME_MODE_NONE,
+    GAME_MODE_MENU,
+    GAME_MODE_PLAY
 };
 
 utf8* to_string(Game_Mode game_mode) {
-    #define case(type) case Game_Mode::type: return #type
+    #define case(type) case type: return #type
 
     switch (game_mode) {
-        case(NONE);
-        case(MENU);
-        case(PLAY);
+        case(GAME_MODE_NONE);
+        case(GAME_MODE_MENU);
+        case(GAME_MODE_PLAY);
     }
 
     #undef case
@@ -295,14 +231,14 @@ void switch_game_mode(Game_Mode new_game_mode);
 
 void switch_game_mode(Game_Mode new_game_mode) {
     switch (game_mode) {
-        case Game_Mode::NONE: {
+        case GAME_MODE_NONE: {
             break;
         }
-        case Game_Mode::MENU: {
+        case GAME_MODE_MENU: {
             stop_menu();
             break;
         }
-        case Game_Mode::PLAY: {
+        case GAME_MODE_PLAY: {
             stop_play();
             break;
         }
@@ -310,11 +246,11 @@ void switch_game_mode(Game_Mode new_game_mode) {
     }
 
     switch (new_game_mode) {
-        case Game_Mode::MENU: {
+        case GAME_MODE_MENU: {
             start_menu();
             break;
         }
-        case Game_Mode::PLAY: {
+        case GAME_MODE_PLAY: {
             start_play();
             break;
         }
@@ -425,76 +361,93 @@ i32 main() {
     playing_music = play_sound(&music_sound, music_volume, true);
     
     update_projections();
-    switch_game_mode(Game_Mode::MENU);
+    switch_game_mode(GAME_MODE_MENU);
 
     while (!platform.should_quit) {
         update_platform();
-        update_sound();
-    
         update_projections();
+
+        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glViewport(0, 0, platform.window_width, platform.window_height);
+
+        update_sound();
 
         music_volume = lerp(music_volume, 0.05f * timers.delta, 0.5f);
         set_volume(playing_music, music_volume);
 
-        for_each (Entity* entity, &entities) {
-            switch (entity->type) {
-                case Entity_Type::NONE: {
-                    break;
+        if (simulate_entities) {
+            for_each (Entity* entity, &entities) {
+                switch (entity->type) {
+                    case ENTITY_TYPE_NONE: {
+                        break;
+                    }
+                    case ENTITY_TYPE_PLAYER: {
+                        on_update(entity->player);
+                        break;
+                    }
+                    case ENTITY_TYPE_LASER: {
+                        on_update(entity->laser);
+                        break;
+                    }
+                    case ENTITY_TYPE_ASTEROID: {
+                        on_update(entity->asteroid);
+                        break;
+                    }
+                    case ENTITY_TYPE_ENEMY: {
+                        on_update(entity->enemy);
+                        break;
+                    }
+                    invalid_default_case();
                 }
-                case Entity_Type::PLAYER: {
-                    on_update(entity->player);
-                    break;
-                }
-                case Entity_Type::LASER: {
-                    on_update(entity->laser);
-                    break;
-                }
-                case Entity_Type::ASTEROID: {
-                    on_update(entity->asteroid);
-                    break;
-                }
-                case Entity_Type::ENEMY: {
-                    on_update(entity->enemy);
-                    break;
-                }
-                invalid_default_case();
+
+                if (entity->position.x < world_left)   entity->position.x = world_right;
+                if (entity->position.x > world_right)  entity->position.x = world_left;
+                if (entity->position.y < world_bottom) entity->position.y = world_top;
+                if (entity->position.y > world_top)    entity->position.y = world_bottom;
             }
 
-            if (entity->position.x < world_left)   entity->position.x = world_right;
-            if (entity->position.x > world_right)  entity->position.x = world_left;
-            if (entity->position.y < world_bottom) entity->position.y = world_top;
-            if (entity->position.y > world_top)    entity->position.y = world_bottom;
-        }
+            build_entity_hierarchy(&root_entity);
 
-        for_each (Entity* us, &entities) {
-            if (!us->has_collider) continue;
+            for_each (Entity* us, &entities) {
+                if (!us->has_collider) continue;
 
-            for_each (Entity* them, &entities) {
-                if (us == them)          continue;
-                if (!them->has_collider) continue;
+                for_each (Entity* them, &entities) {
+                    if (us == them)          continue;
+                    if (!them->has_collider) continue;
 
-                if (does_collide(us, them)) {
-                    switch (us->type) {
-                        case Entity_Type::NONE: {
-                            break;
+                    Vector2 us_position   = get_world_position(us);
+                    Vector2 them_position = get_world_position(them);
+
+                    Circle circle_us   = make_circle(get_world_position(us),   us->collider_radius);
+                    Circle circle_them = make_circle(get_world_position(them), them->collider_radius);
+
+                    // @todo: Mirror the collision volumes as well, similar to the draw
+
+                    if (intersects(circle_us, circle_them)) {
+                        switch (us->type) {
+                            case ENTITY_TYPE_NONE: {
+                                break;
+                            }
+                            case ENTITY_TYPE_PLAYER: {
+                                on_collision(us->player, them);
+                                break;
+                            }
+                            case ENTITY_TYPE_LASER: {
+                                on_collision(us->laser, them);
+                                break;
+                            }
+                            case ENTITY_TYPE_ASTEROID: {
+                                on_collision(us->asteroid, them);
+                                break;
+                            }
+                            case ENTITY_TYPE_ENEMY: {
+                                on_collision(us->enemy, them);
+                                break;
+                            }
+                            invalid_default_case();
                         }
-                        case Entity_Type::PLAYER: {
-                            on_collision(us->player, them);
-                            break;
-                        }
-                        case Entity_Type::LASER: {
-                            on_collision(us->laser, them);
-                            break;
-                        }
-                        case Entity_Type::ASTEROID: {
-                            on_collision(us->asteroid, them);
-                            break;
-                        }
-                        case Entity_Type::ENEMY: {
-                            on_collision(us->enemy, them);
-                            break;
-                        }
-                        invalid_default_case();
                     }
                 }
             }
@@ -504,28 +457,28 @@ i32 main() {
             if (!entity->needs_to_be_destroyed) continue;
 
             switch (entity->type) {
-                case Entity_Type::NONE: {
+                case ENTITY_TYPE_NONE: {
                     break;
                 }
-                case Entity_Type::PLAYER: {
+                case ENTITY_TYPE_PLAYER: {
                     on_destroy(entity->player);
                     remove(&players, entity->player);
 
                     break;
                 }
-                case Entity_Type::LASER: {
+                case ENTITY_TYPE_LASER: {
                     on_destroy(entity->laser);
                     remove(&lasers, entity->laser);
 
                     break;
                 }
-                case Entity_Type::ASTEROID: {
+                case ENTITY_TYPE_ASTEROID: {
                     on_destroy(entity->asteroid);
                     remove(&asteroids, entity->asteroid);
 
                     break;
                 }
-                case Entity_Type::ENEMY: {
+                case ENTITY_TYPE_ENEMY: {
                     on_destroy(entity->enemy);
                     remove(&enemies, entity->enemy);
 
@@ -550,11 +503,6 @@ i32 main() {
         }
 
         build_entity_hierarchy(&root_entity);
-
-        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glViewport(0, 0, platform.window_width, platform.window_height);
         set_projection(world_projection);
 
         for (u32 x = 0; x < 6; x++) {
@@ -563,7 +511,7 @@ i32 main() {
                 position += make_vector2((f32) x, (f32) y) * 5.0f;
 
                 set_transform(make_transform_matrix(position));
-                draw_sprite(&background_sprite, 5.0f, 5.0f, false);
+                draw_sprite(&sprite_background, 5.0f, false);
             }
         }
 
@@ -582,8 +530,56 @@ i32 main() {
         for_each (Entity** it, &sorted_entities) {
             Entity* entity = *it;
 
-            set_transform(entity->transform * make_transform_matrix(entity->sprite_offset));
-            draw_sprite(entity->sprite, entity->sprite_size * entity->sprite->aspect, entity->sprite_size);
+            Matrix4 transform = entity->transform * make_transform_matrix(entity->sprite_offset);
+            Vector2 position  = make_vector2(transform._41, transform._42);
+
+            f32 width  = entity->sprite->aspect * entity->sprite_size;
+            f32 height = entity->sprite_size;
+
+            f32 bounds = width > height ? width : height;
+
+            if (position.x - world_left <= bounds) {
+                f32 mirrored_x = world_right + (position.x - world_left);
+
+                Matrix4 new_transform = transform;
+                new_transform._41 = mirrored_x;
+
+                set_transform(new_transform);
+                draw_sprite(entity->sprite, entity->sprite_size);
+            }
+
+            if (world_right - position.x <= bounds) {
+                f32 mirrored_x = world_left - (world_right - position.x);
+
+                Matrix4 new_transform = transform;
+                new_transform._41 = mirrored_x;
+
+                set_transform(new_transform);
+                draw_sprite(entity->sprite, entity->sprite_size);
+            }
+
+            if (position.y - world_bottom <= bounds) {
+                f32 mirrored_y = world_top + (position.y - world_bottom);
+
+                Matrix4 new_transform = transform;
+                new_transform._42 = mirrored_y;
+
+                set_transform(new_transform);
+                draw_sprite(entity->sprite, entity->sprite_size);
+            }
+
+            if (world_top - position.y <= bounds) {
+                f32 mirrored_y = world_bottom - (world_top - position.y);
+
+                Matrix4 new_transform = transform;
+                new_transform._42 = mirrored_y;
+
+                set_transform(new_transform);
+                draw_sprite(entity->sprite, entity->sprite_size);
+            }
+
+            set_transform(transform);
+            draw_sprite(entity->sprite, entity->sprite_size);
 
             #if DEBUG
                 if (entity->has_collider) {
@@ -594,11 +590,11 @@ i32 main() {
         }
 
         switch (game_mode) {
-            case Game_Mode::MENU: {
+            case GAME_MODE_MENU: {
                 update_menu();
                 break;
             }
-            case Game_Mode::PLAY: {
+            case GAME_MODE_PLAY: {
                 update_play();
                 break;
             }
