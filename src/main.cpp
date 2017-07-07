@@ -7,12 +7,7 @@ Allocator temp_allocator;
 
 #include "draw.cpp"
 #include "sound.cpp"
-
-// @todo:
-//  - Screen shake when lasers hit
-//  - Particle effects
-//  - A dev console
-//
+#include "gui.cpp"
 
 f32 world_height;
 f32 world_width;
@@ -23,10 +18,9 @@ f32 world_top;
 f32 world_bottom;
 
 Matrix4 world_projection;
-Matrix4 gui_projection;
 
-Playing_Sound* playing_music;
-f32 music_volume;
+const utf8* SETTINGS_FILE_NAME = "settings.txt";
+const utf8* SCORES_FILE_NAME   = "scores.txt";
 
 enum Entity_Type {
     ENTITY_TYPE_NONE,
@@ -316,7 +310,7 @@ Array<Entity*> sort_visible_entities(Array<Entity*> visible_entities) {
     return sorted;
 }
 
-void update_projections() {
+void update_world_projection() {
     world_height = 15.0f;
     world_width  = world_height * ((f32) platform.window_width / (f32) platform.window_height);
 
@@ -326,7 +320,6 @@ void update_projections() {
     world_bottom = -world_height / 2.0f;
 
     world_projection = make_orthographic_matrix(world_left, world_right, world_top, world_bottom, -10.0f, 10.0f);
-    gui_projection   = make_orthographic_matrix(0.0f, (f32) platform.window_width, (f32) platform.window_height, 0.0f);
 }
 
 i32 main() {
@@ -338,7 +331,7 @@ i32 main() {
 
     default_allocator = heap_allocator;
 
-    FILE* settings_file = fopen(format_string("%s/settings.txt", get_executable_directory()), "rb");
+    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "rb");
     if (settings_file) {
         utf8 fullscreen[4];
         fscanf(settings_file, "fullscreen=%s", fullscreen);
@@ -346,36 +339,33 @@ i32 main() {
             toggle_fullscreen();
         }
 
-        printf("Read settings from 'settings.txt'\n");
+        printf("Read settings from '%s'\n", SETTINGS_FILE_NAME);
         fclose(settings_file);
     }
     else {
-        printf("Failed to read settings from 'settings.txt', the file does not exist\n");
+        printf("Failed to read settings from '%s', the file does not exist\n", SETTINGS_FILE_NAME);
     }
 
     show_window();
+    update_world_projection();
 
     init_draw();
     init_sound();
 
-    playing_music = play_sound(&music_sound, music_volume, true);
-    
-    update_projections();
     switch_game_mode(GAME_MODE_MENU);
 
     while (!platform.should_quit) {
         update_platform();
-        update_projections();
 
         glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glViewport(0, 0, platform.window_width, platform.window_height);
 
-        update_sound();
+        update_world_projection();
+        gui_begin();
 
-        music_volume = lerp(music_volume, 0.05f * timers.delta, 0.5f);
-        set_volume(playing_music, music_volume);
+        update_sound();
 
         if (simulate_entities) {
             for_each (Entity* entity, &entities) {
@@ -505,13 +495,18 @@ i32 main() {
         build_entity_hierarchy(&root_entity);
         set_projection(world_projection);
 
-        for (u32 x = 0; x < 6; x++) {
-            for (u32 y = 0; y < 3; y++) {
+        f32 tile_size = 5.0f;
+        
+        u32 tiles_x = (u32) (world_width  / tile_size) + 1;
+        u32 tiles_y = (u32) (world_height / tile_size) + 1;
+        
+        for (u32 x = 0; x < tiles_x; x++) {
+            for (u32 y = 0; y < tiles_y; y++) {
                 Vector2 position = make_vector2(world_left, world_bottom);
-                position += make_vector2((f32) x, (f32) y) * 5.0f;
+                position += make_vector2((f32) x, (f32) y) * tile_size;
 
                 set_transform(make_transform_matrix(position));
-                draw_sprite(&sprite_background, 5.0f, false);
+                draw_sprite(&sprite_background, tile_size, false);
             }
         }
 
@@ -602,19 +597,14 @@ i32 main() {
         }
 
         #if DEBUG
-            set_projection(gui_projection);
-
-            Vector2 layout = make_vector2(16.0f, platform.window_height - 16.0f - get_text_height(&font_arial, 24.0f));
-            set_transform(make_transform_matrix(layout));
-
-            draw_text(&font_arial, 24.0f, format_string("%.2f, %.2f, %i", timers.now, timers.delta * 1000.0f, (u32) (1.0f / timers.delta)));
-            
-            layout.y -= get_text_height(&font_arial, 24.0f);
-            set_transform(make_transform_matrix(layout));
-
-            draw_text(&font_arial, 24.0f, format_string("%u, %u", platform.heap_memory_allocated, platform.temp_memory_allocated));
+            begin_layout(GUI_ADVANCE_VERTICAL, get_font_line_gap(&font_arial, 18.0f), GUI_ANCHOR_TOP_LEFT, 10.0f, 10.0f); {
+                gui_text(&font_arial, format_string("%.2f, %.2f, %u", timers.now, timers.delta * 1000.0f, (u32) (1.0f / timers.delta)), 18.0f);
+                gui_text(&font_arial, format_string("%u, %u", platform.heap_memory_allocated, platform.temp_memory_allocated), 18.0f);
+            }
+            end_layout();
         #endif
-
+        
+        gui_end();
         swap_buffers();
     }
     

@@ -65,10 +65,6 @@ Vector2 make_vector2(f32 x, f32 y) {
     return vector2;
 }
 
-Vector2 make_vector2() {
-    return make_vector2(0.0f, 0.0f);
-}
-
 Vector2 operator +(Vector2 a, Vector2 b) {
     return make_vector2(a.x + b.x, a.y + b.y);
 }
@@ -108,7 +104,7 @@ f32 get_length(Vector2 a) {
 Vector2 normalize(Vector2 a) {
     f32 length = get_length(a);
     if (!length) {
-        return make_vector2();
+        return make_vector2(0.0f, 0.0f);
     }
 
     return make_vector2(a.x / length, a.y / length);

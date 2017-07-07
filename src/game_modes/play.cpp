@@ -132,35 +132,12 @@ void start_play() {
 }
 
 void stop_play() {
-    // clear_entities();
+    
 }
 
 void update_play() {
-    set_projection(gui_projection);
-
     if (player_lives) {
-        for (u32 i = 0; i < player_lives; i++) {
-            f32 width  = sprite_ui_ship.width  * 1.75f;
-            f32 height = sprite_ui_ship.height * 1.75f;
-
-            Vector2 position = make_vector2(50.0f, 50.0f);
-
-            position += make_vector2(width / 2.0f, height / 2.0f);
-            position += make_vector2(i * (width + 15.0f), 0.0f);
-
-            set_transform(make_transform_matrix(position, -45.0f));
-            draw_sprite(&sprite_ui_ship, height);
-        }
-
-        utf8* score_text = format_string("%u", player_score);
-
-        set_transform(make_transform_matrix(
-            make_vector2(
-                platform.window_width  - 50.0f - get_text_width(&font_nasalization, 45.0f, score_text), 
-                platform.window_height - 50.0f - get_text_height(&font_nasalization, 45.0f))));
-
-        draw_text(&font_nasalization, 45.0f, score_text);
-
+        // @todo: Pause button on the GUI
         if (input.key_escape.down) {
             if (is_paused) {
                 simulate_entities = true;
@@ -172,94 +149,42 @@ void update_play() {
             }
         }
 
+        begin_layout(GUI_ADVANCE_HORIZONTAL, 15.0f, GUI_ANCHOR_BOTTOM_LEFT, 50.0f, 50.0f); {
+            for (u32 i = 0; i < player_lives; i++) {
+                gui_image(&sprite_ui_ship, sprite_ui_ship.height * 1.75f);
+            }
+        }
+        end_layout();
+
+        begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_TOP_RIGHT, 50.0f, 50.0f); {
+            gui_text(format_string("%u", player_score), 45.0f);
+        }
+        end_layout();
+
         if (is_paused) {
-            draw_rectangle(
-                make_rectangle2(make_vector2(), (f32) platform.window_width, (f32) platform.window_height), 
-                make_color(0.0f, 0.0f, 0.0f, 0.25f));
+            gui_fill(make_color(0.0f, 0.0f, 0.0f, 0.25f));
 
-            utf8* title = "Paused";
-            utf8* options[] = {
-                "Resume",
-                "Quit"
-            };
+            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                gui_text("Paused", 45.0f);
+                gui_pad(10.0f);
 
-            f32 title_size   = 45.0f;
-            f32 option_size  = 32.0f;
-            f32 padding_size = 10.0f;
-
-            Vector2 layout;
-
-            {
-                f32 total_height = 0.0f;
-
-                total_height += get_text_height(&font_nasalization, title_size);
-                total_height += padding_size;
-
-                for (u32 i = 0; i < count_of(options); i++) {
-                    total_height += get_text_height(&font_nasalization, option_size);
-                    total_height += padding_size;
+                if (gui_button("Resume", 32.0f)) {
+                    simulate_entities = true;
+                    is_paused = false;
                 }
 
-                layout.x = (platform.window_width / 2.0f) - (get_text_width(&font_nasalization, title_size, title) / 2.0f);
-                layout.y = (platform.window_height / 2.0f) + (total_height / 2.0f);
-            }
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
 
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, title_size, title);
-
-            layout.y -= get_text_height(&font_nasalization, title_size);
-            layout.y -= padding_size;
-
-            for (u32 i = 0; i < count_of(options); i++) {
-                utf8* option = options[i];
-
-                f32 width  = get_text_width(&font_nasalization, option_size, option);
-                f32 height = get_text_height(&font_nasalization, option_size);
-
-                layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
-
-                Rectangle2 dimensions = make_rectangle2(layout, width, height);
-
-                Vector2 world_position = unproject(
-                    input.mouse_x, 
-                    input.mouse_y, 
-                    platform.window_width, 
-                    platform.window_height, 
-                    gui_projection);
-
-                Color color = make_color(1.0f, 1.0f, 1.0f);
-
-                if (contains(dimensions, world_position)) {
-                    color = make_color(1.0f, 1.0f, 0.0f);
-
-                    if (input.mouse_left.down) {
-                        switch (i) {
-                            case 0: {
-                                simulate_entities = true;
-                                is_paused = false;
-
-                                break;
-                            }
-                            case 1: {
-                                if (the_player) {
-                                    destroy_entity(the_player->entity);
-                                }
-
-                                simulate_entities = true;
-                                switch_game_mode(GAME_MODE_MENU);
-                                
-                                break;
-                            }
-                        }
+                if (gui_button("Quit", 32.0f)) {
+                    if (the_player) {
+                        destroy_entity(the_player->entity);
                     }
+
+                    simulate_entities = true;
+                    switch_game_mode(GAME_MODE_MENU);
                 }
-
-                set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, option_size, option, color);
-
-                layout.y -= get_text_height(&font_nasalization, option_size);
-                layout.y -= padding_size;
             }
+            end_layout();
         }
         else {
             if (is_waiting_for_next_level) {
@@ -280,73 +205,33 @@ void update_play() {
             }
 
              if (!the_player) {
-                utf8* lives_text = format_string("You have %u lives left", player_lives);
-                f32   lives_size = 30.0f;
+                begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                    gui_text(format_string("You have %u lives left", player_lives), 45.0f);
+                    gui_pad(10.0f);
 
-                f32 lives_width  = get_text_width(&font_nasalization, lives_size, lives_text);
-                f32 lives_height = get_text_height(&font_nasalization, lives_size);
-
-                utf8* spawn_text = "Press space bar to spawn your ship";
-                f32   spawn_size = 24.0f;
-
-                f32 spawn_width  = get_text_width(&font_nasalization, spawn_size, spawn_text);
-                f32 spawn_height = get_text_height(&font_nasalization, spawn_size);
-
-                set_transform(make_transform_matrix(
-                    make_vector2(
-                        (platform.window_width  / 2.0f) - (lives_width / 2.0f), 
-                        (platform.window_height / 2.0f) + 5.0f)));
-                
-                draw_text(&font_nasalization, lives_size, lives_text);
-
-                set_transform(make_transform_matrix(
-                    make_vector2(
-                        (platform.window_width  / 2.0f) - (spawn_width / 2.0f), 
-                        (platform.window_height / 2.0f) - 5.0f - spawn_height)));
-                
-                draw_text(&font_nasalization, spawn_size, spawn_text);
-
-                if (input.key_space.down) {
-                    spawn_player();
+                    if (gui_button("Respawn", 32.0f)) {
+                        spawn_player();
+                    }
                 }
+                end_layout();
             }
         }
     }
     else {
-        utf8* score_text = format_string("You scored %u points", player_score);
-        f32   score_size = 30.0f;
+        begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+            gui_text(format_string("You scored %u points", player_score), 45.0f);
+            gui_pad(10.0f);
 
-        f32 score_width  = get_text_width(&font_nasalization, score_size, score_text);
-        f32 score_height = get_text_height(&font_nasalization, score_size);
+            if (gui_button("Continue", 32.0f)) {
+                FILE* scores_file = fopen(SCORES_FILE_NAME, "ab");
+                fprintf(scores_file, "%u, %u\n", player_score, (u32) time(null));
 
-        utf8* play_again_text = "Press space bar to continue";
-        f32   play_again_size = 24.0f;
+                printf("Wrote score to '%s'\n", SCORES_FILE_NAME);
+                fclose(scores_file);
 
-        f32 play_again_width  = get_text_width(&font_nasalization, play_again_size, play_again_text);
-        f32 play_again_height = get_text_height(&font_nasalization, play_again_size);
-
-        set_transform(make_transform_matrix(
-            make_vector2(
-                (platform.window_width  / 2.0f) - (score_width / 2.0f), 
-                (platform.window_height / 2.0f) + 5.0f)));
-
-        draw_text(&font_nasalization, score_size, score_text);
-
-        set_transform(make_transform_matrix(
-            make_vector2(
-                (platform.window_width  / 2.0f) - (play_again_width / 2.0f), 
-                (platform.window_height / 2.0f) - 5.0f - play_again_height)));
-
-        draw_text(&font_nasalization, play_again_size, play_again_text);
-
-        if (input.key_space.down) {
-            FILE* scores_file = fopen(format_string("%s/scores.txt", get_executable_directory()), "ab");
-            fprintf(scores_file, "%u, %u\n", player_score, (u32) time(null));
-
-            printf("Wrote score to 'scores.txt'\n");
-            fclose(scores_file);
-
-            switch_game_mode(GAME_MODE_MENU);
+                switch_game_mode(GAME_MODE_MENU);
+            }
         }
+        end_layout();
     }
 }

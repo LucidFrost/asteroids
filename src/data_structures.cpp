@@ -1,3 +1,12 @@
+void* operator new(size_t size, void* memory) {
+    return memory;
+}
+
+template<typename type>
+void construct(type* it) {
+    new (it) type;
+}
+
 typedef void* Alloc(u32 size);
 typedef void  Dealloc(void* memory);
 
@@ -16,12 +25,6 @@ Allocator make_allocator(Alloc* alloc, Dealloc* dealloc) {
 
     return allocator;
 }
-
-void* operator new(size_t size, void* memory) {
-    return memory;
-}
-
-#define construct(type, memory) new (memory) type
 
 #define for_each(element, in)                                   \
     for (auto iterator = make_iterator(in); iterator.has_next;) \
@@ -182,6 +185,12 @@ type* get_next(Array_Iterator<type>* iterator) {
     return element;
 }
 
+template<typename type>
+type* peek_next(Array_Iterator<type>* iterator) {
+    assert(iterator->has_next);
+    return &iterator->array->elements[iterator->next];
+}
+
 template<typename type, u32 size>
 struct Bucket {
     type elements[size];
@@ -226,7 +235,7 @@ Bucket_Locator add(Bucket_Array<type, size>* bucket_array, type element) {
         // @note: There is a bug passing this type through the macro size_of...
 
         Bucket<type, size>* bucket = (Bucket<type, size>*) bucket_array->allocator->alloc(sizeof(Bucket<type, size>));
-        bucket = new (bucket) Bucket<type, size>;
+        construct(bucket);
 
         array_index  = add(&bucket_array->buckets, bucket);
         bucket_index = 0;
@@ -352,6 +361,12 @@ type* get_next(Bucket_Iterator<type, size>* iterator) {
     }
 
     return element;
+}
+
+template<typename type, u32 size>
+type* peek_next(Bucket_Iterator<type, size>* iterator) {
+    assert(iterator->has_next);
+    return get(iterator->bucket_array, iterator->next);
 }
 
 template<typename type, u32 size>

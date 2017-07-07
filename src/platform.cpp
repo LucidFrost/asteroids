@@ -229,6 +229,17 @@ bool compare(utf8* string_a, utf8* string_b) {
     return true;
 }
 
+u32 hash(utf8* string) {
+    u32 length = get_length(string);
+
+    u32 hash = 5381;
+    for (u32 i = 0; i < length; i++) {
+        hash = ((hash << 5) + hash) + string[i];
+    }
+
+    return hash;
+}
+
 utf8* format_string_args(utf8* string, va_list args) {
     void* temp_alloc(u32 size);
 

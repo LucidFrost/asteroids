@@ -35,24 +35,15 @@ popd
 
 if %build_result% equ 0 (
     if %is_debug% equ 1 (
-        REM echo Starting game
-        REM build\asteroids.exe
+        REM call run.bat
     ) else (
         echo Packaging release
         
         if exist release (rmdir release /s /q)
-
         mkdir release
-        mkdir release\data
-        mkdir release\data\fonts
-        mkdir release\data\sounds
-        mkdir release\data\sprites
 
-        copy "data\fonts\*"   "release\data\fonts"
-        copy "data\sounds\*"  "release\data\sounds"
-        copy "data\sprites\*" "release\data\sprites"
-        
-        copy "build\asteroids.exe" "release"
+        xcopy "data" "release" /e
+        xcopy "build\asteroids.exe" "release"
     )
 )
 

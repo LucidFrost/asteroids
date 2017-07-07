@@ -142,6 +142,9 @@ Sound spawn_sound;
 Sound kill_01_sound;
 Sound kill_02_sound;
 
+Playing_Sound* playing_music;
+f32 music_volume;
+
 void init_sound() {
     #if OS_WINDOWS
         XAudio2Create(&x_audio, 0, XAUDIO2_DEFAULT_PROCESSOR);
@@ -154,12 +157,14 @@ void init_sound() {
         playing_sounds_mutex = CreateMutex(null, false, null);
     #endif
 
-    music_sound    = load_sound("data/sounds/music.ogg");
-    laser_01_sound = load_sound("data/sounds/laser_01.ogg");
-    laser_02_sound = load_sound("data/sounds/laser_02.ogg");
-    spawn_sound    = load_sound("data/sounds/spawn.ogg");
-    kill_01_sound  = load_sound("data/sounds/kill_01.ogg");
-    kill_02_sound  = load_sound("data/sounds/kill_02.ogg");
+    music_sound    = load_sound("sounds/music.ogg");
+    laser_01_sound = load_sound("sounds/laser_01.ogg");
+    laser_02_sound = load_sound("sounds/laser_02.ogg");
+    spawn_sound    = load_sound("sounds/spawn.ogg");
+    kill_01_sound  = load_sound("sounds/kill_01.ogg");
+    kill_02_sound  = load_sound("sounds/kill_02.ogg");
+
+    playing_music = play_sound(&music_sound, music_volume, true);
 }
 
 void update_sound() {
@@ -175,4 +180,7 @@ void update_sound() {
 
         ReleaseMutex(playing_sounds_mutex);
     #endif
+
+    music_volume = lerp(music_volume, 0.05f * timers.delta, 0.5f);
+    set_volume(playing_music, music_volume);
 }

@@ -1,7 +1,7 @@
 enum Menu_Mode {
     MENU_MODE_NONE,
     MENU_MODE_MAIN,
-    MENU_MODE_SHIP,
+    MENU_MODE_CUSTOMIZE,
     MENU_MODE_SCOREBOARD,
     MENU_MODE_SETTINGS
 };
@@ -78,8 +78,6 @@ void stop_menu() {
 }
 
 void update_menu() {
-    set_projection(gui_projection);
-
     if (input.key_escape.down) {
         menu_mode = MENU_MODE_MAIN;
     }
@@ -90,254 +88,118 @@ void update_menu() {
                 platform.should_quit = true;
             }
 
-            utf8* title_text = "Asteroids!";
+            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                gui_text("Asteroids!", 45.0f);
+                gui_pad(10.0f);
 
-            utf8* menu_options[] = {
-                "Play",
-                "Ship",
-                "Scoreboard",
-                "Settings",
-                "Quit"
-            };
+                if (gui_button("Play", 32.0f)) {
+                    switch_game_mode(GAME_MODE_PLAY);
+                }
 
-            f32 total_height = 0.0f;
-            
-            total_height += get_text_height(&font_nasalization, menu_title_size);
-            total_height += menu_padding_size;
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
 
-            for (u32 i = 0; i < count_of(menu_options); i++) {
-                total_height += get_text_height(&font_nasalization, menu_option_size);
-                total_height += menu_padding_size;
-            }
+                if (gui_button("Customize", 32.0f)) {
+                    menu_mode = MENU_MODE_CUSTOMIZE;
+                }
 
-            Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
-                (platform.window_height / 2.0f) + (total_height / 2.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
 
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, menu_title_size, title_text);
+                if (gui_button("Scoreboard", 32.0f)) {
+                    menu_mode = MENU_MODE_SCOREBOARD;
 
-            layout.y -= get_text_height(&font_nasalization, menu_title_size);
-            layout.y -= menu_padding_size;
+                    Array<Score> scores;
+                    scores.allocator = &temp_allocator;
 
-            for (u32 i = 0; i < count_of(menu_options); i++) {
-                utf8* menu_option = menu_options[i];
+                    FILE* scores_file = fopen(SCORES_FILE_NAME, "rb");
+                    if (scores_file) {
+                        while (!feof(scores_file)) {
+                            Score score;
+                            
+                            i32 result = fscanf(scores_file, "%u, %u", &score.value, &score.time);
+                            if (result <= 0) break;
 
-                f32 width  = get_text_width(&font_nasalization, menu_option_size, menu_option);
-                f32 height = get_text_height(&font_nasalization, menu_option_size);
+                            add(&scores, score);
+                        }
 
-                layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
+                        printf("Read scores from '%s'\n", SCORES_FILE_NAME);
+                        fclose(scores_file);
+                    }
+                    else {
+                        printf("Failed to read scores from '%s', the file does not exist\n", SCORES_FILE_NAME);
+                    }
 
-                Rectangle2 dimensions = make_rectangle2(layout, width, height);
-                Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, gui_projection);
+                    Array<Score> sorted_scores = sort_scores(scores);
 
-                Color color = make_color(1.0f, 1.0f, 1.0f);
-                if (contains(dimensions, world_position)) {
-                    color = make_color(1.0f, 1.0f, 0.0f);
-
-                    if (input.mouse_left.down) {
-                        switch (i) {
-                            case 0: {
-                                switch_game_mode(GAME_MODE_PLAY);
-                                break;
-                            }
-                            case 1: {
-                                menu_mode = MENU_MODE_SHIP;
-                                break;
-                            }
-                            case 2: {
-                                menu_mode = MENU_MODE_SCOREBOARD;
-
-                                Array<Score> scores;
-                                scores.allocator = &temp_allocator;
-
-                                FILE* scores_file = fopen(format_string("%s/scores.txt", get_executable_directory()), "rb");
-                                if (scores_file) {
-                                    while (!feof(scores_file)) {
-                                        Score score;
-                                        
-                                        i32 result = fscanf(scores_file, "%u, %u", &score.value, &score.time);
-                                        if (result <= 0) break;
-
-                                        add(&scores, score);
-                                    }
-
-                                    printf("Read scores from 'scores.txt'\n");
-                                    fclose(scores_file);
-                                }
-                                else {
-                                    printf("Failed to read scores from 'scores.txt', the file does not exist\n");
-                                }
-
-                                Array<Score> sorted_scores = sort_scores(scores);
-
-                                for (u32 i = 0; i < count_of(high_scores); i++) {
-                                    if (i < sorted_scores.count) {
-                                        high_scores[i] = sorted_scores[i];
-                                    }
-                                    else {
-                                        high_scores[i].value = 0;
-                                        high_scores[i].time  = 0;
-                                    }
-                                }
-
-                                break;
-                            }
-                            case 3: {
-                                menu_mode = MENU_MODE_SETTINGS;
-                                break;
-                            }
-                            case 4: {
-                                platform.should_quit = true;
-                                break;
-                            }
+                    for (u32 i = 0; i < count_of(high_scores); i++) {
+                        if (i < sorted_scores.count) {
+                            high_scores[i] = sorted_scores[i];
+                        }
+                        else {
+                            high_scores[i].value = 0;
+                            high_scores[i].time  = 0;
                         }
                     }
                 }
 
-                set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_option_size, menu_option, color);
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                
+                if (gui_button("Settings", 32.0f)) {
+                    menu_mode = MENU_MODE_SETTINGS;
+                }
 
-                layout.y -= height;
-                layout.y -= menu_padding_size;
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+
+                if (gui_button("Quit", 32.0f)) {
+                    platform.should_quit = true;
+                }
             }
+            end_layout();
 
             break;
         }
-        case MENU_MODE_SHIP: {
-            utf8* title_text = "Ship";
-            
-            utf8* actions[] = {
-                "Back",
-                "Accept"
-            };
+        case MENU_MODE_CUSTOMIZE: {
+            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                gui_text("Customize", 45.0f);
+                gui_pad(10.0f);
 
-            f32 total_height = 0.0f;
+                // @todo: Add color choice
+                // @todo: Add score unlocks for customization
+                // @todo: Add custom ships
 
-            total_height += get_text_height(&font_nasalization, menu_title_size);
-            total_height += menu_padding_size;
+                begin_layout(GUI_ADVANCE_HORIZONTAL, GUI_ANCHOR_CENTER); {
+                    if (gui_button("<", 32.0f)) {
+                        printf("Last ship\n");
+                    }
 
-            total_height += 200.0f;
+                    gui_image(get_ship_sprite(SHIP_COLOR_RED, SHIP_TYPE_2), 150.0f);
 
-            total_height += get_text_height(&font_nasalization, menu_option_size);
-            total_height += menu_padding_size;
-
-            Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
-                (platform.window_height / 2.0f) + (total_height / 2.0f));
-
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, menu_title_size, title_text);
-
-            layout.x = platform.window_width  / 2.0f;
-            layout.y = platform.window_height / 2.0f;
-
-            set_transform(make_transform_matrix(layout));
-            draw_sprite(get_ship_sprite(SHIP_COLOR_RED, SHIP_TYPE_2), 150.0f);
-
-            layout.x -= 150.0f;
-
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, menu_title_size, "<");
-
-            layout.x += 300.0f;
-
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, menu_title_size, ">");
-
-            layout.y -= 150.0f;
-
-            f32 total_width = 0.0f;
-            for (u32 i = 0; i < count_of(actions); i++) {
-                utf8* action = actions[i];
-                
-                total_width += get_text_width(&font_nasalization, menu_option_size, action);
-                total_width += menu_padding_size * 2.0f;
-            }
-
-            layout.x = (platform.window_width / 2.0f) - (total_width / 2.0f);
-
-            for (u32 i = 0; i < count_of(actions); i++) {
-                utf8* action = actions[i];
-
-                f32 width  = get_text_width(&font_nasalization, menu_option_size, action);
-                f32 height = get_text_height(&font_nasalization, menu_option_size);
-
-                Rectangle2 dimensions = make_rectangle2(layout, width, height);
-                Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, gui_projection);
-
-                Color color = make_color(1.0f, 1.0f, 1.0f);
-                if (contains(dimensions, world_position)) {
-                    color = make_color(1.0f, 1.0f, 0.0f);
-
-                    if (input.mouse_left.down) {
-                        switch (i) {
-                            case 0: {
-                                menu_mode = MENU_MODE_MAIN;
-                                break;
-                            }
-                            case 1: {
-                                break;
-                            }
-                        }
+                    if (gui_button(">", 32.0f)) {
+                        printf("Next ship\n");
                     }
                 }
+                end_layout();
 
-                set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_option_size, action, color);
+                begin_layout(GUI_ADVANCE_HORIZONTAL, GUI_ANCHOR_CENTER); {
+                    if (gui_button("Back", 32.0f)) {
+                        menu_mode = MENU_MODE_MAIN;
+                    }
 
-                layout.x += width;
-                layout.x += menu_padding_size * 2.0f;
+                    if (gui_button("Accept", 32.0f)) {
+                        printf("Accept!\n");
+                    }
+                }
+                end_layout();
             }
+            end_layout();
 
             break;
         }
         case MENU_MODE_SCOREBOARD: {
-            utf8* title_text = "Scoreboard";
-            
-            utf8* actions[] = {
-                "Back",
-                "Clear"
-            };
+            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                gui_text("Scoreboard", 45.0f);
+                gui_pad(10.0f);
 
-            f32 total_height = 0.0f;
-
-            total_height += get_text_height(&font_nasalization, menu_title_size);
-            total_height += menu_padding_size;
-
-            for (u32 i = 0; i < count_of(high_scores); i++) {
-                total_height += get_text_height(&font_nasalization, menu_option_size);
-                total_height += menu_padding_size;
-            }
-
-            total_height += get_text_height(&font_nasalization, menu_option_size);
-            total_height += menu_padding_size;
-
-            Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
-                (platform.window_height / 2.0f) + (total_height / 2.0f));
-
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, menu_title_size, title_text);
-
-            layout.y -= get_text_height(&font_nasalization, menu_title_size);
-            layout.y -= menu_padding_size;
-
-            for (u32 i = 0; i < count_of(high_scores); i++) {
-                if (high_scores[i].value) {
-                    layout.x = (platform.window_width / 2.0f) - 200.0f;
-
-                    set_transform(make_transform_matrix(layout));
-                    draw_text(&font_nasalization, menu_option_size, format_string("%u.", i + 1));
-
-                    utf8* text = format_string("%u", high_scores[i].value);
-
-                    f32 width = get_text_width(&font_nasalization, menu_option_size, text);
-                    layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
-
-                    set_transform(make_transform_matrix(layout));
-                    draw_text(&font_nasalization, menu_option_size, text);
-
+                for (u32 i = 0; i < count_of(high_scores); i++) {
                     time_t time_value = (time_t) high_scores[i].time;
                     tm* gm_time = gmtime(&time_value);
 
@@ -345,143 +207,57 @@ void update_menu() {
                     u32 day   = gm_time->tm_mday;
                     u32 year  = 1900 + gm_time->tm_year;
 
-                    text = format_string("%u/%u/%u", month, day, year);
-
-                    layout.x = (platform.window_width / 2.0f) + 150.0f;
-
-                    set_transform(make_transform_matrix(layout));
-                    draw_text(&font_nasalization, menu_option_size, text);                    
+                    gui_text(format_string("%u) %u [%u/%u/%u]", i + 1, high_scores[i].value, month, day, year), 32.0f);
+                    gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
                 }
 
-                layout.y -= get_text_height(&font_nasalization, menu_option_size);
-                layout.y -= menu_padding_size;
-            }
+                gui_pad(10.0f);
 
-            f32 total_width = 0.0f;
-            for (u32 i = 0; i < count_of(actions); i++) {
-                utf8* action = actions[i];
-                
-                total_width += get_text_width(&font_nasalization, menu_option_size, action);
-                total_width += menu_padding_size * 2.0f;
-            }
+                begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
+                    if (gui_button("Back", 32.0f)) {
+                        menu_mode = MENU_MODE_MAIN;
+                    }
 
-            layout.x = (platform.window_width / 2.0f) - (total_width / 2.0f);
+                    if (gui_button("Clear", 32.0f)) {
+                        FILE* scores_file = fopen(SCORES_FILE_NAME, "wb");
 
-            for (u32 i = 0; i < count_of(actions); i++) {
-                utf8* action = actions[i];
+                        printf("Cleared scores from '%s'\n", SCORES_FILE_NAME);
+                        fclose(scores_file);
 
-                f32 width  = get_text_width(&font_nasalization, menu_option_size, action);
-                f32 height = get_text_height(&font_nasalization, menu_option_size);
-
-                Rectangle2 dimensions = make_rectangle2(layout, width, height);
-                Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, gui_projection);
-
-                Color color = make_color(1.0f, 1.0f, 1.0f);
-                if (contains(dimensions, world_position)) {
-                    color = make_color(1.0f, 1.0f, 0.0f);
-
-                    if (input.mouse_left.down) {
-                        switch (i) {
-                            case 0: {
-                                menu_mode = MENU_MODE_MAIN;
-                                break;
-                            }
-                            case 1: {
-                                FILE* scores_file = fopen(format_string("%s/scores.txt", get_executable_directory()), "wb");
-
-                                printf("Cleared scores from 'scores.txt'\n");
-                                fclose(scores_file);
-
-                                for (u32 i = 0; i < count_of(high_scores); i++) {
-                                    high_scores[i].value = 0;
-                                    high_scores[i].time  = 0;
-                                }
-                                
-                                break;
-                            }
+                        for (u32 i = 0; i < count_of(high_scores); i++) {
+                            high_scores[i].value = 0;
+                            high_scores[i].time  = 0;
                         }
                     }
                 }
-
-                set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_option_size, action, color);
-
-                layout.x += width;
-                layout.x += menu_padding_size * 2.0f;
+                end_layout();
             }
+            end_layout();
 
             break;
         }
         case MENU_MODE_SETTINGS: {
-            utf8* title_text = "Settings";
+            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                gui_text("Settings", 45.0f);
+                gui_pad(10.0f);
 
-            utf8* menu_options[] = {
-                "Fullscreen",
-                "Back"
-            };
+                if (gui_button("Toggle Fullscreen", 32.0f)) {
+                    toggle_fullscreen();
 
-            f32 total_height = 0.0f;
+                    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "wb");
+                    fprintf(settings_file, "fullscreen=%s\n", platform.is_fullscreen ? "yes" : "no");
 
-            total_height += get_text_height(&font_nasalization, menu_title_size);
-            total_height += menu_padding_size;
-
-            for (u32 i = 0; i < count_of(menu_options); i++) {
-                total_height += get_text_height(&font_nasalization, menu_option_size);
-                total_height += menu_padding_size;
-            }
-
-            Vector2 layout = make_vector2(
-                (platform.window_width  / 2.0f) - (get_text_width(&font_nasalization, menu_title_size, title_text) / 2.0f), 
-                (platform.window_height / 2.0f) + (total_height / 2.0f));
-
-            set_transform(make_transform_matrix(layout));
-            draw_text(&font_nasalization, menu_title_size, title_text);
-
-            layout.y -= get_text_height(&font_nasalization, menu_title_size);
-            layout.y -= menu_padding_size;
-
-            for (u32 i = 0; i < count_of(menu_options); i++) {
-                utf8* menu_option = menu_options[i];
-
-                f32 width  = get_text_width(&font_nasalization, menu_option_size, menu_option);
-                f32 height = get_text_height(&font_nasalization, menu_option_size);
-
-                layout.x = (platform.window_width / 2.0f) - (width / 2.0f);
-
-                Rectangle2 dimensions = make_rectangle2(layout, width, height);
-                Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, gui_projection);
-
-                Color color = make_color(1.0f, 1.0f, 1.0f);
-                if (contains(dimensions, world_position)) {
-                    color = make_color(1.0f, 1.0f, 0.0f);
-
-                    if (input.mouse_left.down) {
-                        switch (i) {
-                            case 0: {
-                                toggle_fullscreen();
-
-                                FILE* settings_file = fopen(format_string("%s/settings.txt", get_executable_directory()), "wb");
-                                fprintf(settings_file, "fullscreen=%s\n", platform.is_fullscreen ? "yes" : "no");
-
-                                printf("Wrote settings to 'settings.txt'\n");
-                                fclose(settings_file);
-
-                                break;
-                            }
-                            case 1: {
-                                menu_mode = MENU_MODE_MAIN;
-                                break;
-                            }
-                        }
-                    }
+                    printf("Wrote settings to '%s'\n", SETTINGS_FILE_NAME);
+                    fclose(settings_file);
                 }
 
-                set_transform(make_transform_matrix(layout));
-                draw_text(&font_nasalization, menu_option_size, menu_option, color);
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
 
-                layout.y -= height;
-                layout.y -= menu_padding_size;
+                if (gui_button("Back", 32.0f)) {
+                    menu_mode = MENU_MODE_MAIN;
+                }
             }
+            end_layout();
 
             break;
         }

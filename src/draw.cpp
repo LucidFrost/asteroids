@@ -54,8 +54,6 @@ void set_transform(Matrix4 transform) {
 }
 
 void draw_rectangle(Rectangle2 rectangle, Color color, bool fill = true) {
-    set_transform(make_identity_matrix());
-
     glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
     glColor4f(color.r, color.g, color.b, color.a);
 
@@ -125,6 +123,51 @@ Font load_font(utf8* file_name) {
     return font;
 }
 
+f32 get_font_ascent(Font* font, f32 size) {
+    f32 result = 0.0f;
+
+    if (font->is_valid) {
+        f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
+        
+        i32 ascent;
+        stbtt_GetFontVMetrics(&font->info, &ascent, null, null);
+
+        result = ascent * font_scale;
+    }
+
+    return result;
+}
+
+f32 get_font_descent(Font* font, f32 size) {
+    f32 result = 0.0f;
+
+    if (font->is_valid) {
+        f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
+        
+        i32 descent;
+        stbtt_GetFontVMetrics(&font->info, null, &descent, null);
+
+        result = -descent * font_scale;
+    }
+
+    return result;
+}
+
+f32 get_font_line_gap(Font* font, f32 size) {
+    f32 result = 0.0f;
+
+    if (font->is_valid) {
+        f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
+
+        i32 line_gap;
+        stbtt_GetFontVMetrics(&font->info, null, null, &line_gap);
+
+        result = line_gap * font_scale;
+    }
+
+    return result;
+}
+
 f32 get_text_width(Font* font, f32 size, utf8* text) {
     if (!font->is_valid) return 0.0f;
 
@@ -151,16 +194,10 @@ f32 get_text_width(Font* font, f32 size, utf8* text) {
     return width;
 }
 
-f32 get_text_height(Font* font, f32 size) {
-    if (!font->is_valid) return 0.0f;
-
-    f32 font_scale = stbtt_ScaleForPixelHeight(&font->info, size);
-
-    i32 ascent, descent, line_gap;
-    stbtt_GetFontVMetrics(&font->info, &ascent, &descent, &line_gap);
-
-    return (ascent - descent + line_gap) * font_scale;
-}
+// @todo: Remove after porting the rest of the GUI code
+// f32 get_text_height(Font* font, f32 size) {
+//     return get_font_ascent(font, size) + get_font_descent(font, size);
+// }
 
 void draw_text(Font* font, f32 size, utf8* text, Color color = make_color(1.0f, 1.0f, 1.0f)) {
     if (!font->is_valid) return;
@@ -245,8 +282,6 @@ void draw_text(Font* font, f32 size, utf8* text, Color color = make_color(1.0f, 
 
     glEnd();
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    // draw_rectangle(get_text_width(font, size, text), get_text_height(font, size), 0.0f, 1.0f, 0.0f, 1.0f, false, false);
 }
 
 struct Sprite {
@@ -284,9 +319,13 @@ Sprite load_sprite(utf8* file_name) {
     return sprite;
 }
 
+f32 get_sprite_width(Sprite* sprite, f32 height) {
+    return height * sprite->aspect;
+}
+
 void draw_sprite(Sprite* sprite, f32 height, bool center = true) {
     if (!sprite->is_valid) {
-        draw_rectangle(make_rectangle2(make_vector2(), height, height, center), make_color(1.0f, 1.0f, 1.0f), true);
+        draw_rectangle(make_rectangle2(make_vector2(0.0f, 0.0f), height, height, center), make_color(1.0f, 1.0f, 1.0f), true);
         return;
     }
 
@@ -298,7 +337,7 @@ void draw_sprite(Sprite* sprite, f32 height, bool center = true) {
     f32 x = 0.0f;
     f32 y = 0.0f;
 
-    f32 width = height * sprite->aspect;
+    f32 width = get_sprite_width(sprite, height);
 
     if (center) {
         x -= width  / 2.0f;
@@ -408,45 +447,45 @@ void init_draw() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     font_arial             = load_font("c:/windows/fonts/arial.ttf");
-    font_future            = load_font("data/fonts/future.ttf");
-    font_starjedi          = load_font("data/fonts/starjedi.ttf");
-    font_moonhouse         = load_font("data/fonts/moonhouse.ttf");
-    font_nasalization      = load_font("data/fonts/nasalization-rg.ttf");
+    font_future            = load_font("fonts/future.ttf");
+    font_starjedi          = load_font("fonts/starjedi.ttf");
+    font_moonhouse         = load_font("fonts/moonhouse.ttf");
+    font_nasalization      = load_font("fonts/nasalization-rg.ttf");
 
-    sprite_background = load_sprite("data/sprites/background.png");
-    sprite_ui_ship    = load_sprite("data/sprites/ui_ship.png");
-    sprite_thrust     = load_sprite("data/sprites/thrust.png");
-    sprite_shield     = load_sprite("data/sprites/shield.png");
+    sprite_background = load_sprite("sprites/background.png");
+    sprite_ui_ship    = load_sprite("sprites/ui_ship.png");
+    sprite_thrust     = load_sprite("sprites/thrust.png");
+    sprite_shield     = load_sprite("sprites/shield.png");
 
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_1]  = load_sprite("data/sprites/asteroid_small_01.png");
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_2]  = load_sprite("data/sprites/asteroid_small_02.png");
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_3]  = load_sprite("data/sprites/asteroid_small_03.png");
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_4]  = load_sprite("data/sprites/asteroid_small_04.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_1] = load_sprite("data/sprites/asteroid_medium_01.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_2] = load_sprite("data/sprites/asteroid_medium_02.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_3] = load_sprite("data/sprites/asteroid_medium_03.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_4] = load_sprite("data/sprites/asteroid_medium_04.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_1]  = load_sprite("data/sprites/asteroid_large_01.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_2]  = load_sprite("data/sprites/asteroid_large_02.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_3]  = load_sprite("data/sprites/asteroid_large_03.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_4]  = load_sprite("data/sprites/asteroid_large_04.png");
+    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_1]  = load_sprite("sprites/asteroid_small_01.png");
+    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_2]  = load_sprite("sprites/asteroid_small_02.png");
+    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_3]  = load_sprite("sprites/asteroid_small_03.png");
+    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_4]  = load_sprite("sprites/asteroid_small_04.png");
+    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_1] = load_sprite("sprites/asteroid_medium_01.png");
+    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_2] = load_sprite("sprites/asteroid_medium_02.png");
+    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_3] = load_sprite("sprites/asteroid_medium_03.png");
+    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_4] = load_sprite("sprites/asteroid_medium_04.png");
+    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_1]  = load_sprite("sprites/asteroid_large_01.png");
+    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_2]  = load_sprite("sprites/asteroid_large_02.png");
+    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_3]  = load_sprite("sprites/asteroid_large_03.png");
+    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_4]  = load_sprite("sprites/asteroid_large_04.png");
 
-    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_1]    = load_sprite("data/sprites/ship_red_01.png");
-    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_2]    = load_sprite("data/sprites/ship_red_02.png");
-    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_3]    = load_sprite("data/sprites/ship_red_03.png");
-    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_1]  = load_sprite("data/sprites/ship_green_01.png");
-    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_2]  = load_sprite("data/sprites/ship_green_02.png");
-    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_3]  = load_sprite("data/sprites/ship_green_03.png");
-    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_1]   = load_sprite("data/sprites/ship_blue_01.png");
-    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_2]   = load_sprite("data/sprites/ship_blue_02.png");
-    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_3]   = load_sprite("data/sprites/ship_blue_03.png");
-    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_1] = load_sprite("data/sprites/ship_orange_01.png");
-    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_2] = load_sprite("data/sprites/ship_orange_02.png");
-    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_3] = load_sprite("data/sprites/ship_orange_03.png");
+    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_1]    = load_sprite("sprites/ship_red_01.png");
+    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_2]    = load_sprite("sprites/ship_red_02.png");
+    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_3]    = load_sprite("sprites/ship_red_03.png");
+    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_1]  = load_sprite("sprites/ship_green_01.png");
+    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_2]  = load_sprite("sprites/ship_green_02.png");
+    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_3]  = load_sprite("sprites/ship_green_03.png");
+    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_1]   = load_sprite("sprites/ship_blue_01.png");
+    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_2]   = load_sprite("sprites/ship_blue_02.png");
+    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_3]   = load_sprite("sprites/ship_blue_03.png");
+    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_1] = load_sprite("sprites/ship_orange_01.png");
+    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_2] = load_sprite("sprites/ship_orange_02.png");
+    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_3] = load_sprite("sprites/ship_orange_03.png");
 
-    sprite_enemies[ENEMY_COLOR_YELLOW] = load_sprite("data/sprites/enemy_yellow.png");
-    sprite_enemies[ENEMY_COLOR_ORANGE] = load_sprite("data/sprites/enemy_orange.png");
+    sprite_enemies[ENEMY_COLOR_YELLOW] = load_sprite("sprites/enemy_yellow.png");
+    sprite_enemies[ENEMY_COLOR_ORANGE] = load_sprite("sprites/enemy_orange.png");
     
-    sprite_lasers[LASER_COLOR_RED]  = load_sprite("data/sprites/laser_red.png");
-    sprite_lasers[LASER_COLOR_BLUE] = load_sprite("data/sprites/laser_blue.png");
+    sprite_lasers[LASER_COLOR_RED]  = load_sprite("sprites/laser_red.png");
+    sprite_lasers[LASER_COLOR_BLUE] = load_sprite("sprites/laser_blue.png");
 }
