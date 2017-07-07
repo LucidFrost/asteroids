@@ -136,8 +136,10 @@ void stop_play() {
 }
 
 void update_play() {
+    // @todo: Pause button on the GUI
+    // @todo: Notify when they unlock something or get another life
+
     if (player_lives) {
-        // @todo: Pause button on the GUI
         if (input.key_escape.down) {
             if (is_paused) {
                 simulate_entities = true;

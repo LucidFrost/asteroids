@@ -42,7 +42,14 @@ if %build_result% equ 0 (
         if exist release (rmdir release /s /q)
         mkdir release
 
-        xcopy "data" "release" /e
+        mkdir release\fonts
+        mkdir release\sounds
+        mkdir release\sprites
+
+        xcopy "data/fonts"   "release/fonts"   /e
+        xcopy "data/sounds"  "release/sounds"  /e
+        xcopy "data/sprites" "release/sprites" /e
+        
         xcopy "build\asteroids.exe" "release"
     )
 )

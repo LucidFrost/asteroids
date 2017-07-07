@@ -179,12 +179,15 @@ void bake_layout_sizes(Gui_Layout* layout) {
 
 void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
     Vector2 layout_position = make_vector2(cursor.x, cursor.y - layout->baked_height);
-    set_transform(make_transform_matrix(layout_position));
 
-    draw_rectangle(
-        make_rectangle2(make_vector2(-5.0f, -5.0f), layout->baked_width + 10.0f, layout->baked_height + 10.0f), 
-        make_color(0.0f, 0.0f, 1.0f), 
-        false);
+    #if DEBUG    
+        set_transform(make_transform_matrix(layout_position));
+        
+        draw_rectangle(
+            make_rectangle2(make_vector2(-5.0f, -5.0f), layout->baked_width + 10.0f, layout->baked_height + 10.0f), 
+            make_color(0.0f, 0.0f, 1.0f), 
+            false);
+    #endif
 
     for_each (Gui_Entry* entry, &layout->entries) {
         if (entry->type == GUI_ENTRY_TYPE_LAYOUT && entry->layout->anchor) {
@@ -289,10 +292,12 @@ void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
             }
         }
 
-        if (entry->type != GUI_ENTRY_TYPE_LAYOUT) {
-            set_transform(make_identity_matrix());
-            draw_rectangle(make_rectangle2(cursor, entry->width, entry->height), make_color(0.0f, 1.0f, 0.0f), false);
-        }
+        #if DEBUG
+            if (entry->type != GUI_ENTRY_TYPE_LAYOUT) {
+                set_transform(make_identity_matrix());
+                draw_rectangle(make_rectangle2(cursor, entry->width, entry->height), make_color(0.0f, 1.0f, 0.0f), false);
+            }
+        #endif
 
         cursor.y += entry->height;
 
