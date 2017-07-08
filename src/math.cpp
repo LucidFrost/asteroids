@@ -93,6 +93,18 @@ Vector2 operator *(f32 a, Vector2 b) {
     return b * a;
 }
 
+Vector2 operator /(Vector2 a, f32 b) {
+    return make_vector2(a.x / b, a.y / b);
+}
+
+Vector2& operator /=(Vector2& a, f32 b) {
+    return a = a / b;
+}
+
+Vector2 operator /(f32 a, Vector2 b) {
+    return b / a;
+}
+
 f32 get_length_squared(Vector2 a) {
     return square(a.x) + square(a.y);
 }

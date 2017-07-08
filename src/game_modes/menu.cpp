@@ -8,9 +8,40 @@ enum Menu_Mode {
 
 Menu_Mode menu_mode;
 
-f32 menu_title_size   = 45.0f;
-f32 menu_option_size  = 32.0f;
-f32 menu_padding_size = 10.0f;
+void load_settings() {
+    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "rb");
+    if (settings_file) {
+        utf8 fullscreen[4];
+        fscanf(settings_file, "fullscreen=%s\n", fullscreen);
+
+        if (compare(fullscreen, "yes")) {
+            toggle_fullscreen();
+        }
+
+        utf8 sound[4];
+        fscanf(settings_file, "sound=%s\n", sound);
+
+        if (compare(sound, "no")) {
+            toggle_sound();
+        }
+
+        printf("Read settings from '%s'\n", SETTINGS_FILE_NAME);
+        fclose(settings_file);
+    }
+    else {
+        printf("Failed to read settings from '%s', the file does not exist\n", SETTINGS_FILE_NAME);
+    }
+}
+
+void save_settings() {
+    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "wb");
+    
+    fprintf(settings_file, "fullscreen=%s\n", platform.is_fullscreen ? "yes" : "no");
+    fprintf(settings_file, "sound=%s\n", sound_is_on ? "yes" : "no");
+
+    printf("Wrote settings to '%s'\n", SETTINGS_FILE_NAME);
+    fclose(settings_file);
+}
 
 struct Score {
     u32 value;
@@ -55,6 +86,9 @@ Array<Score> sort_scores(Array<Score> scores) {
 
     return sorted;
 }
+
+Ship_Color ship_color;
+Ship_Type  ship_type;
 
 void start_menu() {
     menu_mode = MENU_MODE_MAIN;
@@ -162,31 +196,86 @@ void update_menu() {
                 gui_text("Customize", 45.0f);
                 gui_pad(10.0f);
 
-                // @todo: Add color choice
-                // @todo: Add score unlocks for customization
-                // @todo: Add custom ships
+                begin_layout(GUI_ADVANCE_HORIZONTAL); {
+                    begin_layout(GUI_ADVANCE_VERTICAL); {
+                        begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                            gui_text("Ship Type", 32.0f);
 
-                begin_layout(GUI_ADVANCE_HORIZONTAL, GUI_ANCHOR_CENTER); {
-                    if (gui_button("<", 32.0f)) {
-                        printf("Last ship\n");
+                            begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
+                                if (gui_button(to_u32(&ship_type), "<", 32.0f)) {
+                                    if (ship_type == SHIP_TYPE_1) {
+                                        ship_type = SHIP_TYPE_3;
+                                    }
+                                    else {
+                                        ship_type = (Ship_Type) ((u32) ship_type - 1);
+                                    }
+                                }
+
+                                gui_text(to_string(ship_type), 32.0f);
+
+                                if (gui_button(to_u32(&ship_type), ">", 32.0f)) {
+                                    if (ship_type == SHIP_TYPE_3) {
+                                        ship_type = SHIP_TYPE_1;
+                                    }
+                                    else {
+                                        ship_type = (Ship_Type) ((u32) ship_type + 1);
+                                    }
+                                }
+                            }
+                            end_layout();
+
+                            gui_text("Ship Color", 32.0f);
+
+                            begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
+                                if (gui_button(to_u32(&ship_color), "<", 32.0f)) {
+                                    if (ship_color == SHIP_COLOR_RED) {
+                                        ship_color = SHIP_COLOR_ORANGE;
+                                    }
+                                    else {
+                                        ship_color = (Ship_Color) ((u32) ship_color - 1);
+                                    }
+                                }
+                                
+                                gui_text(to_string(ship_color), 32.0f);
+
+                                if (gui_button(to_u32(&ship_color), ">", 32.0f)) {
+                                    if (ship_color == SHIP_COLOR_ORANGE) {
+                                        ship_color = SHIP_COLOR_RED;
+                                    }
+                                    else {
+                                        ship_color = (Ship_Color) ((u32) ship_color + 1);
+                                    }
+                                }
+                            }
+                            end_layout();
+                        }
+                        end_layout();
                     }
+                    end_layout();
 
-                    gui_image(get_ship_sprite(SHIP_COLOR_RED, SHIP_TYPE_2), 150.0f);
+                    gui_pad(30.0f);
 
-                    if (gui_button(">", 32.0f)) {
-                        printf("Next ship\n");
+                    begin_layout(GUI_ADVANCE_VERTICAL); {
+                        begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                            gui_pad(20.0f);
+                            gui_image(get_ship_sprite(ship_color, ship_type), 100.0f);
+                        }
+                        end_layout();
                     }
+                    end_layout();
                 }
                 end_layout();
 
-                begin_layout(GUI_ADVANCE_HORIZONTAL, GUI_ANCHOR_CENTER); {
+                gui_pad(10.0f);
+
+                begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
                     if (gui_button("Back", 32.0f)) {
                         menu_mode = MENU_MODE_MAIN;
                     }
 
-                    if (gui_button("Accept", 32.0f)) {
-                        printf("Accept!\n");
-                    }
+                    // if (gui_button("Accept", 32.0f)) {
+                    //     printf("Accept!\n");
+                    // }
                 }
                 end_layout();
             }
@@ -195,11 +284,12 @@ void update_menu() {
             break;
         }
         case MENU_MODE_SCOREBOARD: {
-            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+            begin_layout(GUI_ADVANCE_VERTICAL, 10.0f, GUI_ANCHOR_CENTER); {
                 gui_text("Scoreboard", 45.0f);
-                gui_pad(10.0f);
 
                 for (u32 i = 0; i < count_of(high_scores); i++) {
+                    if (!high_scores[i].value) continue;
+
                     time_t time_value = (time_t) high_scores[i].time;
                     tm* gm_time = gmtime(&time_value);
 
@@ -207,11 +297,13 @@ void update_menu() {
                     u32 day   = gm_time->tm_mday;
                     u32 year  = 1900 + gm_time->tm_year;
 
-                    gui_text(format_string("%u) %u [%u/%u/%u]", i + 1, high_scores[i].value, month, day, year), 32.0f);
-                    gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                    begin_layout(GUI_ADVANCE_HORIZONTAL, 25.0f); {
+                        gui_text(format_string("%u)", i + 1), 32.0f);
+                        gui_text(format_string("%u", high_scores[i].value), 32.0f);
+                        gui_text(format_string("%u/%u/%u", month, day, year), 32.0f);
+                    }
+                    end_layout();
                 }
-
-                gui_pad(10.0f);
 
                 begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
                     if (gui_button("Back", 32.0f)) {
@@ -241,14 +333,16 @@ void update_menu() {
                 gui_text("Settings", 45.0f);
                 gui_pad(10.0f);
 
-                if (gui_button("Toggle Fullscreen", 32.0f)) {
+                if (gui_button("Fullscreen", 32.0f)) {
                     toggle_fullscreen();
+                    save_settings();
+                }
 
-                    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "wb");
-                    fprintf(settings_file, "fullscreen=%s\n", platform.is_fullscreen ? "yes" : "no");
-
-                    printf("Wrote settings to '%s'\n", SETTINGS_FILE_NAME);
-                    fclose(settings_file);
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                
+                if (gui_button("Sound", 32.0f)) {
+                    toggle_sound();
+                    save_settings();
                 }
 
                 gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));

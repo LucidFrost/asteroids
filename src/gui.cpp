@@ -1,3 +1,5 @@
+#define DRAW_GUI_BOUNDS 0
+
 enum Gui_Entry_Type {
     GUI_ENTRY_TYPE_NONE,
     GUI_ENTRY_TYPE_PAD,
@@ -180,7 +182,7 @@ void bake_layout_sizes(Gui_Layout* layout) {
 void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
     Vector2 layout_position = make_vector2(cursor.x, cursor.y - layout->baked_height);
 
-    #if DEBUG    
+    #if DEBUG && DRAW_GUI_BOUNDS
         set_transform(make_transform_matrix(layout_position));
         
         draw_rectangle(
@@ -219,13 +221,24 @@ void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
             continue;
         }
 
-        if (layout->advance == GUI_ADVANCE_VERTICAL) {
-            if (layout->anchor == GUI_ANCHOR_CENTER) {
-                cursor.x = (layout->parent->baked_width / 2.0f) - (entry->width / 2.0f) + layout->offset_x;
-            }
+        switch (layout->advance) {
+            case GUI_ADVANCE_HORIZONTAL: {
+                if (layout->anchor == GUI_ANCHOR_CENTER) {
+                    cursor.x = layout_position.x + (layout->baked_width / 2.0f) + layout->offset_x;
+                }
 
-            if (layout->anchor == GUI_ANCHOR_TOP_RIGHT || layout->anchor == GUI_ANCHOR_BOTTOM_RIGHT) {
-                cursor.x = layout_position.x + layout->baked_width - entry->width;
+                break;
+            }
+            case GUI_ADVANCE_VERTICAL: {
+                if (layout->anchor == GUI_ANCHOR_CENTER) {
+                    cursor.x = layout_position.x + (layout->baked_width / 2.0f) - (entry->width / 2.0f) + layout->offset_x;
+                }
+
+                if (layout->anchor == GUI_ANCHOR_TOP_RIGHT || layout->anchor == GUI_ANCHOR_BOTTOM_RIGHT) {
+                    cursor.x = layout_position.x + layout->baked_width - entry->width;
+                }
+
+                break;
             }
         }
 
@@ -292,7 +305,7 @@ void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
             }
         }
 
-        #if DEBUG
+        #if DEBUG && DRAW_GUI_BOUNDS
             if (entry->type != GUI_ENTRY_TYPE_LAYOUT) {
                 set_transform(make_identity_matrix());
                 draw_rectangle(make_rectangle2(cursor, entry->width, entry->height), make_color(0.0f, 1.0f, 0.0f), false);
@@ -422,10 +435,10 @@ void gui_text(utf8* text, f32 size) {
     gui_text(gui_context.default_font, text, size);
 }
 
-bool gui_button(Font* font, utf8* text, f32 size) {
+bool gui_button(u32 id, Font* font, utf8* text, f32 size) {
     Gui_Entry entry;
     
-    entry.id   = hash(text);
+    entry.id   = id + hash(text);
     entry.type = GUI_ENTRY_TYPE_BUTTON;
     
     entry.width  = get_text_width(font, size, text);
@@ -440,8 +453,12 @@ bool gui_button(Font* font, utf8* text, f32 size) {
     return entry.id == gui_context.selected_button_id;
 }
 
+bool gui_button(u32 id, utf8* text, f32 size) {
+    return gui_button(id, gui_context.default_font, text, size);
+}
+
 bool gui_button(utf8* text, f32 size) {
-    return gui_button(gui_context.default_font, text, size);
+    return gui_button(0, text, size);
 }
 
 void gui_fill(Color color) {

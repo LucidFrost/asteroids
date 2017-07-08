@@ -331,27 +331,12 @@ i32 main() {
 
     default_allocator = heap_allocator;
 
-    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "rb");
-    if (settings_file) {
-        utf8 fullscreen[4];
-        fscanf(settings_file, "fullscreen=%s", fullscreen);
-        if (compare(fullscreen, "yes")) {
-            toggle_fullscreen();
-        }
-
-        printf("Read settings from '%s'\n", SETTINGS_FILE_NAME);
-        fclose(settings_file);
-    }
-    else {
-        printf("Failed to read settings from '%s', the file does not exist\n", SETTINGS_FILE_NAME);
-    }
-
-    show_window();
-    update_world_projection();
-
     init_draw();
     init_sound();
 
+    update_world_projection();
+
+    load_settings();
     switch_game_mode(GAME_MODE_MENU);
 
     while (!platform.should_quit) {

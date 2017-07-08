@@ -145,14 +145,23 @@ Sound kill_02_sound;
 Playing_Sound* playing_music;
 f32 music_volume;
 
+bool sound_is_on;
+
+void toggle_sound() {
+    if (sound_is_on) {
+        mastering_voice->SetVolume(0.0f);
+    }
+    else {
+        mastering_voice->SetVolume(1.0f);
+    }
+
+    sound_is_on = !sound_is_on;
+}
+
 void init_sound() {
     #if OS_WINDOWS
         XAudio2Create(&x_audio, 0, XAUDIO2_DEFAULT_PROCESSOR);
         x_audio->CreateMasteringVoice(&mastering_voice);
-
-        #if DEBUG
-            mastering_voice->SetVolume(0.0f);
-        #endif
 
         playing_sounds_mutex = CreateMutex(null, false, null);
     #endif
@@ -165,6 +174,7 @@ void init_sound() {
     kill_02_sound  = load_sound("sounds/kill_02.ogg");
 
     playing_music = play_sound(&music_sound, music_volume, true);
+    sound_is_on = true;
 }
 
 void update_sound() {

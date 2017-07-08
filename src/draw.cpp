@@ -389,12 +389,33 @@ enum Ship_Color {
     SHIP_COLOR_COUNT
 };
 
+utf8* to_string(Ship_Color ship_color) {
+    switch (ship_color) {
+        case SHIP_COLOR_RED:    return "Red";
+        case SHIP_COLOR_GREEN:  return "Green";
+        case SHIP_COLOR_BLUE:   return "Blue";
+        case SHIP_COLOR_ORANGE: return "Orange";
+    }
+
+    return "Invalid";
+}
+
 enum Ship_Type {
     SHIP_TYPE_1,
     SHIP_TYPE_2,
     SHIP_TYPE_3,
     SHIP_TYPE_COUNT
 };
+
+utf8* to_string(Ship_Type ship_type) {
+    switch (ship_type) {
+        case SHIP_TYPE_1: return "Type 1";
+        case SHIP_TYPE_2: return "Type 2";
+        case SHIP_TYPE_3: return "Type 3";
+    }
+
+    return "Invalid";
+}
 
 enum Enemy_Color {
     ENEMY_COLOR_YELLOW,

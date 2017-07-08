@@ -63,6 +63,10 @@ typedef u32      utf32;
 #define count_of(array)         (size_of(array) / size_of(array[0]))
 #define offset_of(type, member) ((u32) ((type*) null)->member)
 
+u32 to_u32(void* address) {
+    return (u32)(u64) address;
+}
+
 const u32 TEMP_MEMORY_SIZE = 512 * 1024;
 
 struct Platform {
@@ -471,10 +475,6 @@ void toggle_fullscreen() {
     }
 #endif
 
-void show_window() {
-    ShowWindow(platform.window, true);
-}
-
 void init_platform() {
     #if OS_WINDOWS
         platform.process_heap = GetProcessHeap();
@@ -519,7 +519,7 @@ void init_platform() {
         platform.window = CreateWindow(
             window_class.lpszClassName, 
             "Asteroids!", 
-            WS_OVERLAPPEDWINDOW, 
+            WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
             (screen_width  / 2) - (platform.window_width  / 2), 
             (screen_height / 2) - (platform.window_height / 2), 
             platform.window_width, 

@@ -79,6 +79,7 @@ void add_score(u32 score) {
 
 void spawn_player() {
     the_player = create_entity(ENTITY_TYPE_PLAYER)->player;
+    the_player->entity->sprite = get_ship_sprite(ship_color, ship_type);
 }
 
 void kill_player() {
