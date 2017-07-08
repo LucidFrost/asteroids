@@ -31,19 +31,15 @@ enum Entity_Type {
 };
 
 utf8* to_string(Entity_Type entity_type) {
-    #define case(type) case type: return #type
-
     switch (entity_type) {
-        case(ENTITY_TYPE_NONE);
-        case(ENTITY_TYPE_PLAYER);
-        case(ENTITY_TYPE_LASER);
-        case(ENTITY_TYPE_ASTEROID);
-        case(ENTITY_TYPE_ENEMY);
+        case ENTITY_TYPE_NONE: return "None";
+        case ENTITY_TYPE_PLAYER: return "Player";
+        case ENTITY_TYPE_LASER: return "Laser";
+        case ENTITY_TYPE_ASTEROID: return "Asteroid";
+        case ENTITY_TYPE_ENEMY: return "Enemy";
     }
 
-    #undef case
-
-    return "INVALID";
+    return "Invalid";
 }
 
 struct Player;
@@ -269,6 +265,19 @@ void build_entity_hierarchy(Entity* entity) {
         build_entity_hierarchy(child);
         child = child->sibling;
     }
+}
+
+void draw_entity_hierarchy(Entity* entity) {
+    begin_layout(GUI_ADVANCE_VERTICAL, get_font_line_gap(&font_arial, 18.0f), GUI_ANCHOR_NONE, 16.0f); {
+        gui_text(&font_arial, to_string(entity->type), 18.0f);
+
+        Entity* child = entity->child;
+        while (child) {
+            draw_entity_hierarchy(child);
+            child = child->sibling;
+        }
+    }
+    end_layout();
 }
 
 Array<Entity*> sort_visible_entities(Array<Entity*> visible_entities) {
@@ -585,6 +594,9 @@ i32 main() {
             begin_layout(GUI_ADVANCE_VERTICAL, get_font_line_gap(&font_arial, 18.0f), GUI_ANCHOR_TOP_LEFT, 10.0f, 10.0f); {
                 gui_text(&font_arial, format_string("%.2f, %.2f, %u", timers.now, timers.delta * 1000.0f, (u32) (1.0f / timers.delta)), 18.0f);
                 gui_text(&font_arial, format_string("%u, %u", platform.heap_memory_allocated, platform.temp_memory_allocated), 18.0f);
+
+                gui_text(&font_arial, "Hierarchy", 18.0f);
+                draw_entity_hierarchy(&root_entity);
             }
             end_layout();
         #endif

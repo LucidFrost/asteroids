@@ -8,6 +8,9 @@ enum Menu_Mode {
 
 Menu_Mode menu_mode;
 
+Ship_Color ship_color;
+Ship_Type  ship_type;
+
 void load_settings() {
     FILE* settings_file = fopen(SETTINGS_FILE_NAME, "rb");
     if (settings_file) {
@@ -25,6 +28,20 @@ void load_settings() {
             toggle_sound();
         }
 
+        u32 read_ship_color;
+        fscanf(settings_file, "ship_color=%u\n", &read_ship_color);
+
+        if (0 <= read_ship_color && read_ship_color < SHIP_COLOR_COUNT) {
+            ship_color = (Ship_Color) read_ship_color;
+        }
+
+        u32 read_ship_type;
+        fscanf(settings_file, "ship_type=%u\n", &read_ship_type);
+
+        if (0 <= read_ship_type && read_ship_type < SHIP_TYPE_COUNT) {
+            ship_type = (Ship_Type) read_ship_type;
+        }
+
         printf("Read settings from '%s'\n", SETTINGS_FILE_NAME);
         fclose(settings_file);
     }
@@ -38,6 +55,8 @@ void save_settings() {
     
     fprintf(settings_file, "fullscreen=%s\n", platform.is_fullscreen ? "yes" : "no");
     fprintf(settings_file, "sound=%s\n", sound_is_on ? "yes" : "no");
+    fprintf(settings_file, "ship_color=%u\n", (u32) ship_color);
+    fprintf(settings_file, "ship_type=%u\n", (u32) ship_type);
 
     printf("Wrote settings to '%s'\n", SETTINGS_FILE_NAME);
     fclose(settings_file);
@@ -87,9 +106,6 @@ Array<Score> sort_scores(Array<Score> scores) {
     return sorted;
 }
 
-Ship_Color ship_color;
-Ship_Type  ship_type;
-
 void start_menu() {
     menu_mode = MENU_MODE_MAIN;
 
@@ -112,16 +128,8 @@ void stop_menu() {
 }
 
 void update_menu() {
-    if (input.key_escape.down) {
-        menu_mode = MENU_MODE_MAIN;
-    }
-
     switch (menu_mode) {
         case MENU_MODE_MAIN: {
-            if (input.key_escape.down) {
-                platform.should_quit = true;
-            }
-
             begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
                 gui_text("Asteroids!", 45.0f);
                 gui_pad(10.0f);
@@ -199,31 +207,6 @@ void update_menu() {
                 begin_layout(GUI_ADVANCE_HORIZONTAL); {
                     begin_layout(GUI_ADVANCE_VERTICAL); {
                         begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
-                            gui_text("Ship Type", 32.0f);
-
-                            begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
-                                if (gui_button(to_u32(&ship_type), "<", 32.0f)) {
-                                    if (ship_type == SHIP_TYPE_1) {
-                                        ship_type = SHIP_TYPE_3;
-                                    }
-                                    else {
-                                        ship_type = (Ship_Type) ((u32) ship_type - 1);
-                                    }
-                                }
-
-                                gui_text(to_string(ship_type), 32.0f);
-
-                                if (gui_button(to_u32(&ship_type), ">", 32.0f)) {
-                                    if (ship_type == SHIP_TYPE_3) {
-                                        ship_type = SHIP_TYPE_1;
-                                    }
-                                    else {
-                                        ship_type = (Ship_Type) ((u32) ship_type + 1);
-                                    }
-                                }
-                            }
-                            end_layout();
-
                             gui_text("Ship Color", 32.0f);
 
                             begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
@@ -234,6 +217,8 @@ void update_menu() {
                                     else {
                                         ship_color = (Ship_Color) ((u32) ship_color - 1);
                                     }
+
+                                    save_settings();
                                 }
                                 
                                 gui_text(to_string(ship_color), 32.0f);
@@ -245,6 +230,37 @@ void update_menu() {
                                     else {
                                         ship_color = (Ship_Color) ((u32) ship_color + 1);
                                     }
+
+                                    save_settings();
+                                }
+                            }
+                            end_layout();
+
+                            gui_text("Ship Type", 32.0f);
+
+                            begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
+                                if (gui_button(to_u32(&ship_type), "<", 32.0f)) {
+                                    if (ship_type == SHIP_TYPE_1) {
+                                        ship_type = SHIP_TYPE_3;
+                                    }
+                                    else {
+                                        ship_type = (Ship_Type) ((u32) ship_type - 1);
+                                    }
+
+                                    save_settings();
+                                }
+
+                                gui_text(to_string(ship_type), 32.0f);
+
+                                if (gui_button(to_u32(&ship_type), ">", 32.0f)) {
+                                    if (ship_type == SHIP_TYPE_3) {
+                                        ship_type = SHIP_TYPE_1;
+                                    }
+                                    else {
+                                        ship_type = (Ship_Type) ((u32) ship_type + 1);
+                                    }
+
+                                    save_settings();
                                 }
                             }
                             end_layout();

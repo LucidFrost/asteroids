@@ -12,13 +12,13 @@
     #include <windows.h>
     #include <windowsx.h>
     #include <gl/gl.h>
-    #include <xinput.h>
+    // #include <xinput.h>
     #include <xaudio2.h>
 
     #pragma comment(lib, "user32.lib")
     #pragma comment(lib, "gdi32.lib")
     #pragma comment(lib, "opengl32.lib")
-    #pragma comment(lib, "xinput.lib")
+    // #pragma comment(lib, "xinput.lib")
     #pragma comment(lib, "xaudio2.lib")
 #elif OS_LINUX
     #pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -118,34 +118,6 @@ struct Timers {
 };
 
 Timers timers;
-
-#if OS_LINUX
-    // @note: Taken from http://www.geonius.com/software/source/libgpl/ts_util.c
-    timespec subtract_timespecs(timespec time1, timespec time2) {
-        timespec result;
-
-        if ((time1.tv_sec < time2.tv_sec) || ((time1.tv_sec == time2.tv_sec) && (time1.tv_nsec <= time2.tv_nsec))) {
-            result.tv_sec = result.tv_nsec = 0;
-        }
-        else {
-            result.tv_sec = time1.tv_sec - time2.tv_sec;
-            if (time1.tv_nsec < time2.tv_nsec) {
-                result.tv_nsec = time1.tv_nsec + 1000000000L - time2.tv_nsec;
-                result.tv_sec -= 1;
-            }
-            else {
-                result.tv_nsec = time1.tv_nsec - time2.tv_nsec;
-            }
-        }
-
-        return result;
-    }
-
-    // @note: Taken from http://www.geonius.com/software/source/libgpl/ts_util.c
-    f64 timespec_to_f64(timespec time) {
-        return (f64) time.tv_sec + (time.tv_nsec / 1000000000.0);
-    }
-#endif
 
 struct Key {
     bool up   = false;
@@ -436,43 +408,86 @@ void toggle_fullscreen() {
 }
 
 #if OS_WINDOWS
-    LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
-        LRESULT result = 0;
 
-        switch (message) {
-            case WM_DESTROY: {
-                platform.should_quit = true;
-                break;
-            }
-            case WM_ACTIVATE: {
-                switch (LOWORD(w_param)) {
-                    case WA_CLICKACTIVE:
-                    case WA_ACTIVE: {
-                        platform.is_active = true;
-                        break;
-                    }
-                    case WA_INACTIVE: {
-                        platform.is_active = false;
-                        break;
-                    }
-                }
+// f32 process_xinput_stick(i16 value, i16 dead_zone) {
+//     f32 result = 0.0f;
 
-                break;
-            }
-            case WM_SIZE: {
-                platform.window_width  = LOWORD(l_param);
-                platform.window_height = HIWORD(l_param);
+//     if (value < -dead_zone) {
+//         result = (f32) (value + dead_zone) / (f32) (-INT16_MIN - dead_zone);
+//     }
+//     else if (value > dead_zone) {
+//         result = (f32) (value - dead_zone) / (f32) (INT16_MAX - dead_zone);
+//     }
 
-                break;
-            }
-            default: {
-                result = DefWindowProc(window, message, w_param, l_param);
-                break;
-            }
+//     return result;
+// }
+
+LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
+    LRESULT result = 0;
+
+    switch (message) {
+        case WM_DESTROY: {
+            platform.should_quit = true;
+            break;
         }
+        case WM_ACTIVATE: {
+            switch (LOWORD(w_param)) {
+                case WA_CLICKACTIVE:
+                case WA_ACTIVE: {
+                    platform.is_active = true;
+                    break;
+                }
+                case WA_INACTIVE: {
+                    platform.is_active = false;
+                    break;
+                }
+            }
 
-        return result;
+            break;
+        }
+        case WM_SIZE: {
+            platform.window_width  = LOWORD(l_param);
+            platform.window_height = HIWORD(l_param);
+
+            break;
+        }
+        default: {
+            result = DefWindowProc(window, message, w_param, l_param);
+            break;
+        }
     }
+
+    return result;
+}
+
+#elif OS_LINUX
+
+// @note: Taken from http://www.geonius.com/software/source/libgpl/ts_util.c
+timespec subtract_timespecs(timespec time1, timespec time2) {
+    timespec result;
+
+    if ((time1.tv_sec < time2.tv_sec) || ((time1.tv_sec == time2.tv_sec) && (time1.tv_nsec <= time2.tv_nsec))) {
+        result.tv_sec = result.tv_nsec = 0;
+    }
+    else {
+        result.tv_sec = time1.tv_sec - time2.tv_sec;
+        if (time1.tv_nsec < time2.tv_nsec) {
+            result.tv_nsec = time1.tv_nsec + 1000000000L - time2.tv_nsec;
+            result.tv_sec -= 1;
+        }
+        else {
+            result.tv_nsec = time1.tv_nsec - time2.tv_nsec;
+        }
+    }
+
+    return result;
+}
+
+// @note: Taken from http://www.geonius.com/software/source/libgpl/ts_util.c
+f64 timespec_to_f64(timespec time) {
+    return (f64) time.tv_sec + (time.tv_nsec / 1000000000.0);
+}
+
 #endif
 
 void init_platform() {
@@ -609,21 +624,6 @@ void init_platform() {
     #endif
 }
 
-#if OS_WINDOWS
-    f32 process_xinput_stick(i16 value, i16 dead_zone) {
-        f32 result = 0.0f;
-
-        if (value < -dead_zone) {
-            result = (f32) (value + dead_zone) / (f32) (-INT16_MIN - dead_zone);
-        }
-        else if (value > dead_zone) {
-            result = (f32) (value - dead_zone) / (f32) (INT16_MAX - dead_zone);
-        }
-
-        return result;
-    }
-#endif
-
 void update_platform() {
     platform.temp_memory_allocated = 0;
 
@@ -662,26 +662,26 @@ void update_platform() {
             input.mouse_x = cursor_position.x;
             input.mouse_y = cursor_position.y;
 
-            for (int i = 0; i < XUSER_MAX_COUNT; i++) {
-                XINPUT_STATE state;
-                if (XInputGetState(i, &state) == ERROR_SUCCESS) {
-                    XINPUT_GAMEPAD* gamepad = &state.Gamepad;
+            // for (int i = 0; i < XUSER_MAX_COUNT; i++) {
+            //     XINPUT_STATE state;
+            //     if (XInputGetState(i, &state) == ERROR_SUCCESS) {
+            //         XINPUT_GAMEPAD* gamepad = &state.Gamepad;
 
-                    update_key(&input.gamepad_start, (gamepad->wButtons & XINPUT_GAMEPAD_START) == XINPUT_GAMEPAD_START);
-                    update_key(&input.gamepad_a,     (gamepad->wButtons & XINPUT_GAMEPAD_A)     == XINPUT_GAMEPAD_A);
-                    update_key(&input.gamepad_b,     (gamepad->wButtons & XINPUT_GAMEPAD_B)     == XINPUT_GAMEPAD_B);
-                    update_key(&input.gamepad_x,     (gamepad->wButtons & XINPUT_GAMEPAD_X)     == XINPUT_GAMEPAD_X);
-                    update_key(&input.gamepad_y,     (gamepad->wButtons & XINPUT_GAMEPAD_Y)     == XINPUT_GAMEPAD_Y);
+            //         update_key(&input.gamepad_start, (gamepad->wButtons & XINPUT_GAMEPAD_START) == XINPUT_GAMEPAD_START);
+            //         update_key(&input.gamepad_a,     (gamepad->wButtons & XINPUT_GAMEPAD_A)     == XINPUT_GAMEPAD_A);
+            //         update_key(&input.gamepad_b,     (gamepad->wButtons & XINPUT_GAMEPAD_B)     == XINPUT_GAMEPAD_B);
+            //         update_key(&input.gamepad_x,     (gamepad->wButtons & XINPUT_GAMEPAD_X)     == XINPUT_GAMEPAD_X);
+            //         update_key(&input.gamepad_y,     (gamepad->wButtons & XINPUT_GAMEPAD_Y)     == XINPUT_GAMEPAD_Y);
 
-                    update_key(&input.gamepad_left_trigger,  gamepad->bLeftTrigger  > XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
-                    update_key(&input.gamepad_right_trigger, gamepad->bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
+            //         update_key(&input.gamepad_left_trigger,  gamepad->bLeftTrigger  > XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
+            //         update_key(&input.gamepad_right_trigger, gamepad->bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
 
-                    input.gamepad_left_x  = process_xinput_stick(gamepad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-                    input.gamepad_left_y  = process_xinput_stick(gamepad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-                    input.gamepad_right_x = process_xinput_stick(gamepad->sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-                    input.gamepad_right_y = process_xinput_stick(gamepad->sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-                }
-            }
+            //         input.gamepad_left_x  = process_xinput_stick(gamepad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+            //         input.gamepad_left_y  = process_xinput_stick(gamepad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+            //         input.gamepad_right_x = process_xinput_stick(gamepad->sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+            //         input.gamepad_right_y = process_xinput_stick(gamepad->sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+            //     }
+            // }
         }
     #elif OS_LINUX
         timespec now;

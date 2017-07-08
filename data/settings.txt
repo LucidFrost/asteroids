@@ -1,2 +1,4 @@
 fullscreen=no
 sound=no
+ship_color=1
+ship_type=0

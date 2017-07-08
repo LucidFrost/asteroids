@@ -298,6 +298,7 @@ void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
                 Gui_Layout* child_layout = entry->layout;
                 Vector2     child_cursor = cursor;
 
+                child_cursor.x += child_layout->offset_x;
                 child_cursor.y += entry->height;
 
                 draw_layout_entries(child_layout, child_cursor);
