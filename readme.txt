@@ -1,6 +1,4 @@
-Welcome to my simple Asteroids clone.
-
-This was not intended to correctly replicate the gameplay in the original Asteroids. Instead I used this as a tool to practice development.
+Welcome to my space shooter game, Asteroids!
 
 If you just want to try the game, there is a build for Windows in the release section on the github at https://github.com/LucidFrost/asteroids/releases.
 
