@@ -191,6 +191,12 @@ void update_menu() {
 
                 gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
 
+                if (gui_button("Credits", 32.0f)) {
+                    
+                }
+
+                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+
                 if (gui_button("Quit", 32.0f)) {
                     platform.should_quit = true;
                 }

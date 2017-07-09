@@ -597,6 +597,8 @@ i32 main() {
 
                 gui_text(&font_arial, "Hierarchy", 18.0f);
                 draw_entity_hierarchy(&root_entity);
+
+                // @todo: Debug view of the entity bucket arrays to determine if their sizes are tuned correctly
             }
             end_layout();
         #endif

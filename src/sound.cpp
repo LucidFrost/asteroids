@@ -1,4 +1,5 @@
 // @todo: Expose the platform specific API's through the platform file
+// @todo: Drop XAudio2 in favor of DirectSound (Windows 7 compatibility)
 
 #pragma warning(push)
     #pragma warning(disable: 4100)
