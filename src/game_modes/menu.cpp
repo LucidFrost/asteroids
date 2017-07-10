@@ -3,10 +3,17 @@ enum Menu_Mode {
     MENU_MODE_MAIN,
     MENU_MODE_CUSTOMIZE,
     MENU_MODE_SCOREBOARD,
-    MENU_MODE_SETTINGS
+    MENU_MODE_SETTINGS,
+    MENU_MODE_CREDITS
 };
 
 Menu_Mode menu_mode;
+
+const f32 MENU_TITLE_SIZE  = 45.0f;
+const f32 MENU_OPTION_SIZE = 32.0f;
+
+const utf8* SETTINGS_FILE_NAME = "settings.txt";
+const utf8* SCORES_FILE_NAME   = "scores.txt";
 
 Ship_Color ship_color;
 Ship_Type  ship_type;
@@ -17,7 +24,7 @@ void load_settings() {
         utf8 fullscreen[4];
         fscanf(settings_file, "fullscreen=%s\n", fullscreen);
 
-        if (compare(fullscreen, "yes")) {
+        if (compare(fullscreen, "no")) {
             toggle_fullscreen();
         }
 
@@ -131,22 +138,22 @@ void update_menu() {
     switch (menu_mode) {
         case MENU_MODE_MAIN: {
             begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
-                gui_text("Asteroids!", 45.0f);
+                gui_text("Asteroids!", MENU_TITLE_SIZE);
                 gui_pad(10.0f);
 
-                if (gui_button("Play", 32.0f)) {
+                if (gui_button("Play", MENU_OPTION_SIZE)) {
                     switch_game_mode(GAME_MODE_PLAY);
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
 
-                if (gui_button("Customize", 32.0f)) {
+                if (gui_button("Customize", MENU_OPTION_SIZE)) {
                     menu_mode = MENU_MODE_CUSTOMIZE;
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
 
-                if (gui_button("Scoreboard", 32.0f)) {
+                if (gui_button("Scoreboard", MENU_OPTION_SIZE)) {
                     menu_mode = MENU_MODE_SCOREBOARD;
 
                     Array<Score> scores;
@@ -183,21 +190,21 @@ void update_menu() {
                     }
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
                 
-                if (gui_button("Settings", 32.0f)) {
+                if (gui_button("Settings", MENU_OPTION_SIZE)) {
                     menu_mode = MENU_MODE_SETTINGS;
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
 
-                if (gui_button("Credits", 32.0f)) {
-                    
+                if (gui_button("Credits", MENU_OPTION_SIZE)) {
+                    menu_mode = MENU_MODE_CREDITS;
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
 
-                if (gui_button("Quit", 32.0f)) {
+                if (gui_button("Quit", MENU_OPTION_SIZE)) {
                     platform.should_quit = true;
                 }
             }
@@ -207,16 +214,16 @@ void update_menu() {
         }
         case MENU_MODE_CUSTOMIZE: {
             begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
-                gui_text("Customize", 45.0f);
+                gui_text("Customize", MENU_TITLE_SIZE);
                 gui_pad(10.0f);
 
                 begin_layout(GUI_ADVANCE_HORIZONTAL); {
                     begin_layout(GUI_ADVANCE_VERTICAL); {
                         begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
-                            gui_text("Ship Color", 32.0f);
+                            gui_text("Ship Color", MENU_OPTION_SIZE);
 
                             begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
-                                if (gui_button(to_u32(&ship_color), "<", 32.0f)) {
+                                if (gui_button(to_u32(&ship_color), "<", MENU_OPTION_SIZE)) {
                                     if (ship_color == SHIP_COLOR_RED) {
                                         ship_color = SHIP_COLOR_ORANGE;
                                     }
@@ -227,9 +234,9 @@ void update_menu() {
                                     save_settings();
                                 }
                                 
-                                gui_text(to_string(ship_color), 32.0f);
+                                gui_text(to_string(ship_color), MENU_OPTION_SIZE);
 
-                                if (gui_button(to_u32(&ship_color), ">", 32.0f)) {
+                                if (gui_button(to_u32(&ship_color), ">", MENU_OPTION_SIZE)) {
                                     if (ship_color == SHIP_COLOR_ORANGE) {
                                         ship_color = SHIP_COLOR_RED;
                                     }
@@ -242,10 +249,10 @@ void update_menu() {
                             }
                             end_layout();
 
-                            gui_text("Ship Type", 32.0f);
+                            gui_text("Ship Type", MENU_OPTION_SIZE);
 
                             begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
-                                if (gui_button(to_u32(&ship_type), "<", 32.0f)) {
+                                if (gui_button(to_u32(&ship_type), "<", MENU_OPTION_SIZE)) {
                                     if (ship_type == SHIP_TYPE_1) {
                                         ship_type = SHIP_TYPE_3;
                                     }
@@ -256,9 +263,9 @@ void update_menu() {
                                     save_settings();
                                 }
 
-                                gui_text(to_string(ship_type), 32.0f);
+                                gui_text(to_string(ship_type), MENU_OPTION_SIZE);
 
-                                if (gui_button(to_u32(&ship_type), ">", 32.0f)) {
+                                if (gui_button(to_u32(&ship_type), ">", MENU_OPTION_SIZE)) {
                                     if (ship_type == SHIP_TYPE_3) {
                                         ship_type = SHIP_TYPE_1;
                                     }
@@ -280,7 +287,7 @@ void update_menu() {
                     begin_layout(GUI_ADVANCE_VERTICAL); {
                         begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
                             gui_pad(20.0f);
-                            gui_image(get_ship_sprite(ship_color, ship_type), 100.0f);
+                            gui_image(get_ship_sprite(ship_type, ship_color), 100.0f);
                         }
                         end_layout();
                     }
@@ -291,11 +298,11 @@ void update_menu() {
                 gui_pad(10.0f);
 
                 begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
-                    if (gui_button("Back", 32.0f)) {
+                    if (gui_button("Back", MENU_OPTION_SIZE)) {
                         menu_mode = MENU_MODE_MAIN;
                     }
 
-                    // if (gui_button("Accept", 32.0f)) {
+                    // if (gui_button("Accept", MENU_OPTION_SIZE)) {
                     //     printf("Accept!\n");
                     // }
                 }
@@ -307,7 +314,7 @@ void update_menu() {
         }
         case MENU_MODE_SCOREBOARD: {
             begin_layout(GUI_ADVANCE_VERTICAL, 10.0f, GUI_ANCHOR_CENTER); {
-                gui_text("Scoreboard", 45.0f);
+                gui_text("Scoreboard", MENU_TITLE_SIZE);
 
                 for (u32 i = 0; i < count_of(high_scores); i++) {
                     if (!high_scores[i].value) continue;
@@ -320,19 +327,19 @@ void update_menu() {
                     u32 year  = 1900 + gm_time->tm_year;
 
                     begin_layout(GUI_ADVANCE_HORIZONTAL, 25.0f); {
-                        gui_text(format_string("%u)", i + 1), 32.0f);
-                        gui_text(format_string("%u", high_scores[i].value), 32.0f);
-                        gui_text(format_string("%u/%u/%u", month, day, year), 32.0f);
+                        gui_text(format_string("%u)", i + 1), MENU_OPTION_SIZE);
+                        gui_text(format_string("%u", high_scores[i].value), MENU_OPTION_SIZE);
+                        gui_text(format_string("%u/%u/%u", month, day, year), MENU_OPTION_SIZE);
                     }
                     end_layout();
                 }
 
                 begin_layout(GUI_ADVANCE_HORIZONTAL, 10.0f); {
-                    if (gui_button("Back", 32.0f)) {
+                    if (gui_button("Back", MENU_OPTION_SIZE)) {
                         menu_mode = MENU_MODE_MAIN;
                     }
 
-                    if (gui_button("Clear", 32.0f)) {
+                    if (gui_button("Clear", MENU_OPTION_SIZE)) {
                         FILE* scores_file = fopen(SCORES_FILE_NAME, "wb");
 
                         printf("Cleared scores from '%s'\n", SCORES_FILE_NAME);
@@ -352,24 +359,46 @@ void update_menu() {
         }
         case MENU_MODE_SETTINGS: {
             begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
-                gui_text("Settings", 45.0f);
+                gui_text("Settings", MENU_TITLE_SIZE);
                 gui_pad(10.0f);
 
-                if (gui_button("Fullscreen", 32.0f)) {
+                if (gui_button("Fullscreen", MENU_OPTION_SIZE)) {
                     toggle_fullscreen();
                     save_settings();
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
                 
-                if (gui_button("Sound", 32.0f)) {
+                if (gui_button("Sound", MENU_OPTION_SIZE)) {
                     toggle_sound();
                     save_settings();
                 }
 
-                gui_pad(get_font_line_gap(gui_context.default_font, 32.0f));
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
 
-                if (gui_button("Back", 32.0f)) {
+                if (gui_button("Back", MENU_OPTION_SIZE)) {
+                    menu_mode = MENU_MODE_MAIN;
+                }
+            }
+            end_layout();
+
+            break;
+        }
+        case MENU_MODE_CREDITS: {
+            begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_CENTER); {
+                gui_text("Credits", MENU_TITLE_SIZE);
+                gui_pad(10.0f);
+
+                gui_text("Art created by Kenney Vleugels (www.kenney.nl)", MENU_OPTION_SIZE);
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
+                
+                gui_text("Sound created by Kalen Reed using www.beepbox.com", MENU_OPTION_SIZE);
+                gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));
+                
+                gui_text("Programming and design done by Ryan Flaherty", MENU_OPTION_SIZE);
+                gui_pad(10.0f);
+
+                if (gui_button("Back", MENU_OPTION_SIZE)) {
                     menu_mode = MENU_MODE_MAIN;
                 }
             }

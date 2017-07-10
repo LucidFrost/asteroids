@@ -51,29 +51,33 @@ Sound load_sound(utf8* file_name) {
 }
 
 #if OS_WINDOWS
-    struct Playing_Sound : public IXAudio2VoiceCallback {
-        IXAudio2SourceVoice* source_voice = null;
-        Sound* sound = null;
-        bool is_playing = true;
 
-        void OnStreamEnd() {
-            is_playing = false;
-        }
+struct Playing_Sound : public IXAudio2VoiceCallback {
+    IXAudio2SourceVoice* source_voice = null;
+    Sound* sound = null;
+    bool is_playing = true;
 
-        void OnVoiceProcessingPassEnd() {}
-        void OnVoiceProcessingPassStart(UINT32 samples_required) {}
-        void OnBufferEnd(void* buffer_context) {}
-        void OnBufferStart(void* buffer_context) {}
-        void OnLoopEnd(void* buffer_context) {}
-        void OnVoiceError(void* buffer_context, HRESULT error) {}
-    };
+    void OnStreamEnd() {
+        is_playing = false;
+    }
 
-    Bucket_Array<Playing_Sound, 32> playing_sounds;
-    HANDLE playing_sounds_mutex;
+    void OnVoiceProcessingPassEnd() {}
+    void OnVoiceProcessingPassStart(UINT32 samples_required) {}
+    void OnBufferEnd(void* buffer_context) {}
+    void OnBufferStart(void* buffer_context) {}
+    void OnLoopEnd(void* buffer_context) {}
+    void OnVoiceError(void* buffer_context, HRESULT error) {}
+};
+
+Bucket_Array<Playing_Sound, 32> playing_sounds;
+HANDLE playing_sounds_mutex;
+
 #elif OS_LINUX
-    struct Playing_Sound {
-        u32 foobar = 0.0f;
-    };
+
+struct Playing_Sound {
+    u32 foobar = 0.0f;
+};
+
 #endif
 
 Playing_Sound* play_sound(Sound* sound, float volume = 1.0f, bool loop = false) {
@@ -136,16 +140,6 @@ void set_volume(Playing_Sound* playing_sound, float volume) {
     #endif
 }
 
-Sound music_sound;
-Sound laser_01_sound;
-Sound laser_02_sound;
-Sound spawn_sound;
-Sound kill_01_sound;
-Sound kill_02_sound;
-
-Playing_Sound* playing_music;
-f32 music_volume;
-
 bool sound_is_on;
 
 void toggle_sound() {
@@ -167,14 +161,6 @@ void init_sound() {
         playing_sounds_mutex = CreateMutex(null, false, null);
     #endif
 
-    music_sound    = load_sound("sounds/music.ogg");
-    laser_01_sound = load_sound("sounds/laser_01.ogg");
-    laser_02_sound = load_sound("sounds/laser_02.ogg");
-    spawn_sound    = load_sound("sounds/spawn.ogg");
-    kill_01_sound  = load_sound("sounds/kill_01.ogg");
-    kill_02_sound  = load_sound("sounds/kill_02.ogg");
-
-    playing_music = play_sound(&music_sound, music_volume, true);
     sound_is_on = true;
 }
 
@@ -191,7 +177,4 @@ void update_sound() {
 
         ReleaseMutex(playing_sounds_mutex);
     #endif
-
-    music_volume = lerp(music_volume, 0.05f * timers.delta, 0.5f);
-    set_volume(playing_music, music_volume);
 }

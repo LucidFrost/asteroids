@@ -66,8 +66,6 @@ void draw_rectangle(Rectangle2 rectangle, Color color, bool fill = true) {
 }
 
 void draw_circle(Circle circle, Color color, bool fill = true) {
-    set_transform(make_identity_matrix());
-
     glBegin(fill ? GL_QUADS : GL_LINE_LOOP);
     glColor4f(color.r, color.g, color.b, color.a);
 
@@ -193,11 +191,6 @@ f32 get_text_width(Font* font, f32 size, utf8* text) {
 
     return width;
 }
-
-// @todo: Remove after porting the rest of the GUI code
-// f32 get_text_height(Font* font, f32 size) {
-//     return get_font_ascent(font, size) + get_font_descent(font, size);
-// }
 
 void draw_text(Font* font, f32 size, utf8* text, Color color = make_color(1.0f, 1.0f, 1.0f)) {
     if (!font->is_valid) return;
@@ -360,153 +353,9 @@ void draw_sprite(Sprite* sprite, f32 height, bool center = true) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-Font font_arial;
-Font font_future;
-Font font_starjedi;
-Font font_moonhouse;
-Font font_nasalization;
-
-enum Asteroid_Size {
-    ASTEROID_SIZE_SMALL,
-    ASTEROID_SIZE_MEDIUM,
-    ASTEROID_SIZE_LARGE,
-    ASTEROID_SIZE_COUNT
-};
-
-enum Asteroid_Type {
-    ASTEROID_TYPE_1,
-    ASTEROID_TYPE_2,
-    ASTEROID_TYPE_3,
-    ASTEROID_TYPE_4,
-    ASTEROID_TYPE_COUNT
-};
-
-enum Ship_Color {
-    SHIP_COLOR_RED,
-    SHIP_COLOR_GREEN,
-    SHIP_COLOR_BLUE,
-    SHIP_COLOR_ORANGE,
-    SHIP_COLOR_COUNT
-};
-
-utf8* to_string(Ship_Color ship_color) {
-    switch (ship_color) {
-        case SHIP_COLOR_RED:    return "Red";
-        case SHIP_COLOR_GREEN:  return "Green";
-        case SHIP_COLOR_BLUE:   return "Blue";
-        case SHIP_COLOR_ORANGE: return "Orange";
-    }
-
-    return "Invalid";
-}
-
-enum Ship_Type {
-    SHIP_TYPE_1,
-    SHIP_TYPE_2,
-    SHIP_TYPE_3,
-    SHIP_TYPE_COUNT
-};
-
-utf8* to_string(Ship_Type ship_type) {
-    switch (ship_type) {
-        case SHIP_TYPE_1: return "Type 1";
-        case SHIP_TYPE_2: return "Type 2";
-        case SHIP_TYPE_3: return "Type 3";
-    }
-
-    return "Invalid";
-}
-
-enum Enemy_Color {
-    ENEMY_COLOR_YELLOW,
-    ENEMY_COLOR_ORANGE,
-    ENEMY_COLOR_COUNT
-};
-
-enum Laser_Color {
-    LASER_COLOR_RED,
-    LASER_COLOR_BLUE,
-    LASER_COLOR_COUNT
-};
-
-Sprite sprite_background;
-Sprite sprite_ui_ship;
-Sprite sprite_thrust;
-Sprite sprite_shield;
-
-Sprite sprite_asteroids[ASTEROID_SIZE_COUNT][ASTEROID_TYPE_COUNT];
-Sprite sprite_ships[SHIP_COLOR_COUNT][SHIP_TYPE_COUNT];
-Sprite sprite_enemies[ENEMY_COLOR_COUNT];
-Sprite sprite_lasers[LASER_COLOR_COUNT];
-
-Sprite* get_asteroid_sprite(Asteroid_Size size) {
-    assert(0 <= size && size < ASTEROID_SIZE_COUNT);
-    return &sprite_asteroids[size][get_random_out_of(ASTEROID_TYPE_COUNT)];
-}
-
-Sprite* get_ship_sprite(Ship_Color color, Ship_Type type) {
-    assert(0 <= color && color < SHIP_COLOR_COUNT);
-    assert(0 <= type  && type  < SHIP_TYPE_COUNT);
-
-    return &sprite_ships[color][type];
-}
-
-Sprite* get_enemy_sprite(Enemy_Color color) {
-    assert(0 <= color && color < ENEMY_COLOR_COUNT);
-    return &sprite_enemies[color];
-}
-
-Sprite* get_laser_sprite(Laser_Color color) {
-    assert(0 <= color && color < LASER_COLOR_COUNT);
-    return &sprite_lasers[color];
-}
-
 void init_draw() {
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    font_arial             = load_font("c:/windows/fonts/arial.ttf");
-    font_future            = load_font("fonts/future.ttf");
-    font_starjedi          = load_font("fonts/starjedi.ttf");
-    font_moonhouse         = load_font("fonts/moonhouse.ttf");
-    font_nasalization      = load_font("fonts/nasalization-rg.ttf");
-
-    sprite_background = load_sprite("sprites/background.png");
-    sprite_ui_ship    = load_sprite("sprites/ui_ship.png");
-    sprite_thrust     = load_sprite("sprites/thrust.png");
-    sprite_shield     = load_sprite("sprites/shield.png");
-
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_1]  = load_sprite("sprites/asteroid_small_01.png");
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_2]  = load_sprite("sprites/asteroid_small_02.png");
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_3]  = load_sprite("sprites/asteroid_small_03.png");
-    sprite_asteroids[ASTEROID_SIZE_SMALL][ASTEROID_TYPE_4]  = load_sprite("sprites/asteroid_small_04.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_1] = load_sprite("sprites/asteroid_medium_01.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_2] = load_sprite("sprites/asteroid_medium_02.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_3] = load_sprite("sprites/asteroid_medium_03.png");
-    sprite_asteroids[ASTEROID_SIZE_MEDIUM][ASTEROID_TYPE_4] = load_sprite("sprites/asteroid_medium_04.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_1]  = load_sprite("sprites/asteroid_large_01.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_2]  = load_sprite("sprites/asteroid_large_02.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_3]  = load_sprite("sprites/asteroid_large_03.png");
-    sprite_asteroids[ASTEROID_SIZE_LARGE][ASTEROID_TYPE_4]  = load_sprite("sprites/asteroid_large_04.png");
-
-    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_1]    = load_sprite("sprites/ship_red_01.png");
-    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_2]    = load_sprite("sprites/ship_red_02.png");
-    sprite_ships[SHIP_COLOR_RED][SHIP_TYPE_3]    = load_sprite("sprites/ship_red_03.png");
-    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_1]  = load_sprite("sprites/ship_green_01.png");
-    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_2]  = load_sprite("sprites/ship_green_02.png");
-    sprite_ships[SHIP_COLOR_GREEN][SHIP_TYPE_3]  = load_sprite("sprites/ship_green_03.png");
-    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_1]   = load_sprite("sprites/ship_blue_01.png");
-    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_2]   = load_sprite("sprites/ship_blue_02.png");
-    sprite_ships[SHIP_COLOR_BLUE][SHIP_TYPE_3]   = load_sprite("sprites/ship_blue_03.png");
-    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_1] = load_sprite("sprites/ship_orange_01.png");
-    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_2] = load_sprite("sprites/ship_orange_02.png");
-    sprite_ships[SHIP_COLOR_ORANGE][SHIP_TYPE_3] = load_sprite("sprites/ship_orange_03.png");
-
-    sprite_enemies[ENEMY_COLOR_YELLOW] = load_sprite("sprites/enemy_yellow.png");
-    sprite_enemies[ENEMY_COLOR_ORANGE] = load_sprite("sprites/enemy_orange.png");
-    
-    sprite_lasers[LASER_COLOR_RED]  = load_sprite("sprites/laser_red.png");
-    sprite_lasers[LASER_COLOR_BLUE] = load_sprite("sprites/laser_blue.png");
 }

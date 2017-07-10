@@ -23,17 +23,17 @@ void on_destroy(Enemy* enemy);
 void on_update(Enemy* enemy);
 void on_collision(Enemy* enemy, Entity* them);
 
-#else
-
 void kill_enemy();
+
+#else
 
 void set_enemy_mode(Enemy* enemy, Enemy_Mode enemy_mode) {
     enemy->mode = enemy_mode;
 
     switch (enemy->mode) {
         case ENEMY_MODE_EASY: {
-            enemy->entity->sprite      = get_enemy_sprite(ENEMY_COLOR_YELLOW);
-            enemy->entity->sprite_size = 1.5f;
+            set_sprite(enemy->entity, get_enemy_sprite(ENEMY_COLOR_YELLOW), 1.5f);
+            set_collider(enemy->entity, 0.75f);
             
             enemy->score     = 200;
             enemy->fire_rate = 1.5f;
@@ -41,8 +41,8 @@ void set_enemy_mode(Enemy* enemy, Enemy_Mode enemy_mode) {
             break;
         }
         case ENEMY_MODE_HARD: {
-            enemy->entity->sprite      = get_enemy_sprite(ENEMY_COLOR_ORANGE);
-            enemy->entity->sprite_size = 0.75f;
+            set_sprite(enemy->entity, get_enemy_sprite(ENEMY_COLOR_ORANGE), 0.75f);
+            set_collider(enemy->entity, 0.375f);
 
             enemy->score     = 1000;
             enemy->fire_rate = 0.5f;
@@ -55,29 +55,18 @@ void set_enemy_mode(Enemy* enemy, Enemy_Mode enemy_mode) {
         }
     }
     
-    enemy->entity->collider_radius = enemy->entity->sprite_size / 2.0f;
+    enemy->next_fire = enemy->fire_rate;
 }
 
 void on_create(Enemy* enemy) {
-    enemy->next_fire = enemy->fire_rate;
+    enemy->entity->position = make_vector2(world_left, get_random_between(world_bottom, world_top));
+    enemy->velocity = make_vector2(get_random_chance(2) ? -3.0f : 3.0f, 0.0f);
 
-    enemy->entity->is_visible      = true;
-    enemy->entity->has_collider    = true;
-
-    if (get_random_chance(2)) {
-        enemy->entity->position = make_vector2(world_right, get_random_between(world_bottom, world_top));
-        enemy->velocity = make_vector2(-3.0f, 0.0f);
-    }
-    else {
-        enemy->entity->position = make_vector2(world_left, get_random_between(world_bottom, world_top));
-        enemy->velocity = make_vector2(3.0f, 0.0f);
-    }
-
-    play_sound(&spawn_sound);
+    play_sound(&sound_spawn);
 }
 
 void on_destroy(Enemy* enemy) {
-    play_sound(&kill_01_sound);
+    play_sound(get_kill_sound());
 }
 
 void on_update(Enemy* enemy) {
@@ -90,31 +79,31 @@ void on_update(Enemy* enemy) {
         break;
     }
 
-    if (player && (enemy->next_fire -= timers.delta) <= 0.0f) {
-        enemy->next_fire = enemy->fire_rate;
+    if (player) {
+        if ((enemy->next_fire -= timers.delta) <= 0.0f) {
+            enemy->next_fire = enemy->fire_rate;
 
-        f32 fire_angle = 0.0f;
-        switch (enemy->mode) {
-            case ENEMY_MODE_EASY: {
-                fire_angle = get_random_between(0.0f, 360.0f);
-                break;
+            f32 fire_angle = 0.0f;
+            switch (enemy->mode) {
+                case ENEMY_MODE_EASY: {
+                    fire_angle = get_random_between(0.0f, 360.0f);
+                    break;
+                }
+                case ENEMY_MODE_HARD: {
+                    fire_angle = get_angle(normalize(player->entity->position - enemy->entity->position)) + get_random_between(-25.0f, 25.0f);
+                    break;
+                }
+                invalid_default_case();
             }
-            case ENEMY_MODE_HARD: {
-                fire_angle = get_angle(normalize(player->entity->position - enemy->entity->position)) + get_random_between(-25.0f, 25.0f);
-                break;
-            }
-            default: {
-                assert(false);
-                break;
-            }
+
+            Laser* laser = create_entity(ENTITY_TYPE_LASER)->laser;
+            init_laser(laser, LASER_COLOR_RED, enemy->entity, fire_angle);
+            
+            play_sound(get_enemy_fire_sound());
         }
-
-        Laser* laser = create_entity(ENTITY_TYPE_LASER)->laser;
-
-        laser->shooter_id          = enemy->entity->id;
-        laser->entity->sprite      = get_laser_sprite(LASER_COLOR_RED);
-        laser->entity->position    = enemy->entity->position + (get_direction(fire_angle) * enemy->entity->sprite_size);
-        laser->entity->orientation = fire_angle;
+    }
+    else {
+        enemy->next_fire = enemy->fire_rate;
     }
 }
 
@@ -129,7 +118,7 @@ void on_collision(Enemy* enemy, Entity* them) {
             break;
         }
         case ENTITY_TYPE_PLAYER: {
-            kill_player();
+            damage_player(them->player);
             kill_enemy();
 
             break;

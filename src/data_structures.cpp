@@ -200,7 +200,7 @@ struct Bucket {
 template<typename type, u32 size>
 struct Bucket_Array {
     Allocator* allocator = &default_allocator;
-    
+
     Array<Bucket<type, size>*> buckets;
     u32 count = 0;
 };
@@ -232,7 +232,7 @@ Bucket_Locator add(Bucket_Array<type, size>* bucket_array, type element) {
     }
 
     if (array_index == -1) {
-        // @note: There is a bug passing this type through the macro size_of...
+        // @note: There is a preprocessor bug passing generic types through the macro size_of...
 
         Bucket<type, size>* bucket = (Bucket<type, size>*) bucket_array->allocator->alloc(sizeof(Bucket<type, size>));
         construct(bucket);

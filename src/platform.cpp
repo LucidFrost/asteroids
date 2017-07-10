@@ -242,14 +242,14 @@ void __assert(utf8* file_name, u32 line_number, utf8* expression_string) {
     printf(message);
 
     #if OS_WINDOWS
+        MessageBox(null, message, null, MB_OK | MB_ICONERROR);
+
         if (IsDebuggerPresent()) {
             DebugBreak();
         }
-
-        ExitProcess(1);
-    #else
-        exit(EXIT_FAILURE);
     #endif
+
+    exit(EXIT_FAILURE);
 }
 
 void* heap_alloc(u32 size) {
@@ -534,7 +534,7 @@ void init_platform() {
         platform.window = CreateWindow(
             window_class.lpszClassName, 
             "Asteroids!", 
-            WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
+            WS_OVERLAPPEDWINDOW, 
             (screen_width  / 2) - (platform.window_width  / 2), 
             (screen_height / 2) - (platform.window_height / 2), 
             platform.window_width, 
@@ -622,6 +622,12 @@ void init_platform() {
         platform.gl_context = glXCreateContext(platform.display, visual_info, null, GL_TRUE);
         glXMakeCurrent(platform.display, platform.window, platform.gl_context);
     #endif
+
+    toggle_fullscreen();
+}
+
+void show_window() {
+    ShowWindow(platform.window, SW_SHOW);
 }
 
 void update_platform() {

@@ -7,7 +7,6 @@ Allocator temp_allocator;
 
 #include "draw.cpp"
 #include "sound.cpp"
-#include "assets.cpp"
 #include "gui.cpp"
 
 f32 world_height;
@@ -20,8 +19,8 @@ f32 world_bottom;
 
 Matrix4 world_projection;
 
-Playing_Sound* playing_music;
-f32 music_volume;
+const utf8* SETTINGS_FILE_NAME = "settings.txt";
+const utf8* SCORES_FILE_NAME   = "scores.txt";
 
 enum Entity_Type {
     ENTITY_TYPE_NONE,
@@ -32,15 +31,19 @@ enum Entity_Type {
 };
 
 utf8* to_string(Entity_Type entity_type) {
+    #define case(type) case type: return #type
+
     switch (entity_type) {
-        case ENTITY_TYPE_NONE: return "None";
-        case ENTITY_TYPE_PLAYER: return "Player";
-        case ENTITY_TYPE_LASER: return "Laser";
-        case ENTITY_TYPE_ASTEROID: return "Asteroid";
-        case ENTITY_TYPE_ENEMY: return "Enemy";
+        case(ENTITY_TYPE_NONE);
+        case(ENTITY_TYPE_PLAYER);
+        case(ENTITY_TYPE_LASER);
+        case(ENTITY_TYPE_ASTEROID);
+        case(ENTITY_TYPE_ENEMY);
     }
 
-    return "Invalid";
+    #undef case
+
+    return "INVALID";
 }
 
 struct Player;
@@ -64,14 +67,15 @@ struct Entity {
     f32 orientation = 0.0f;
     f32 scale       = 1.0f;
 
-    Sprite* sprite        = null;
-    f32     sprite_size   = 1.0f;
-    i32     sprite_order  = 0;
-    Vector2 sprite_offset;
-    bool    is_visible    = false;
+    bool has_collider = false;
+    f32 collider_radius = 0.0f;
 
-    f32  collider_radius = 0.0f;
-    bool has_collider    = false;
+    Sprite* sprite = null;
+    Vector2 sprite_offset;
+
+    f32 sprite_size  = 1.0f;
+    i32 sprite_order = 0;
+    bool is_visible  = false;
 
     union {
         void*     derived = null;
@@ -89,17 +93,14 @@ struct Entity {
     #include "entities/laser.cpp"
 #undef AS_HEADER
 
-const u32 ENTITIES_BUCKET_SIZE  = 32;
-const u32 PLAYERS_BUCKET_SIZE   = 1;
-const u32 LASERS_BUCKET_SIZE    = 16;
-const u32 ASTEROIDS_BUCKET_SIZE = 16;
-const u32 ENEMIES_BUCKET_SIZE   = 1;
+// @todo: Once the game is more settled, measure and test various values here
+// to find the most efficient bucket sizes
 
-Bucket_Array<Entity,   ENTITIES_BUCKET_SIZE>  entities;
-Bucket_Array<Player,   PLAYERS_BUCKET_SIZE>   players;
-Bucket_Array<Laser,    LASERS_BUCKET_SIZE>    lasers;
-Bucket_Array<Asteroid, ASTEROIDS_BUCKET_SIZE> asteroids;
-Bucket_Array<Enemy,    ENEMIES_BUCKET_SIZE>   enemies;
+Bucket_Array<Entity,   32> entities;
+Bucket_Array<Player,   1>  players;
+Bucket_Array<Laser,    16> lasers;
+Bucket_Array<Asteroid, 16> asteroids;
+Bucket_Array<Enemy,    1>  enemies;
 
 Entity root_entity;
 u32 next_entity_id;
@@ -191,27 +192,10 @@ Vector2 get_world_position(Entity* entity) {
     return make_vector2(entity->transform._41, entity->transform._42);
 }
 
-Vector2 get_world_position(i32 screen_x, i32 screen_y) {
-    return unproject(screen_x, screen_y, platform.window_width, platform.window_height, world_projection);
-}
-
-void set_sprite(Entity* entity, Sprite* sprite, f32 size = 1.0f, i32 order = 0, Vector2 offset = make_vector2(0.0f, 0.0f)) {
-    entity->sprite        = sprite;
-    entity->sprite_size   = size;
-    entity->sprite_order  = order;
-    entity->sprite_offset = offset;
-    entity->is_visible    = true;
-}
-
-void set_collider(Entity* entity, f32 radius) {
-    entity->collider_radius = radius;
-    entity->has_collider    = true;
-}
-
 #include "entities/asteroid.cpp"
-#include "entities/laser.cpp"
 #include "entities/player.cpp"
 #include "entities/enemy.cpp"
+#include "entities/laser.cpp"
 
 enum Game_Mode {
     GAME_MODE_NONE,
@@ -287,43 +271,6 @@ void build_entity_hierarchy(Entity* entity) {
     }
 }
 
-void draw_entity_hierarchy(Entity* entity) {
-    begin_layout(GUI_ADVANCE_VERTICAL, get_font_line_gap(&font_arial, 18.0f), GUI_ANCHOR_NONE, 16.0f); {
-        gui_text(&font_arial, to_string(entity->type), 18.0f);
-
-        Entity* child = entity->child;
-        while (child) {
-            draw_entity_hierarchy(child);
-            child = child->sibling;
-        }
-    }
-    end_layout();
-}
-
-template<typename type, u32 size>
-void draw_bucket_storage(Bucket_Array<type, size>* bucket_array) {
-    begin_layout(GUI_ADVANCE_VERTICAL); {
-        for (u32 i = 0; i < bucket_array->buckets.count; i++) {
-            gui_pad(5.0f);
-
-            begin_layout(GUI_ADVANCE_HORIZONTAL); {
-                for (u32 j = 0; j < size; j++) {
-                    if (bucket_array->buckets[i]->occupied[j]) {
-                        gui_rectangle(16.0f, 16.0f, make_color(0.0f, 0.0f, 0.0f), make_color(1.0f, 0.0f, 0.0f));
-                    }
-                    else {
-                        gui_rectangle(16.0f, 16.0f, make_color(0.0f, 0.0f, 0.0f));
-                    }
-                }
-            }
-            end_layout();
-
-            gui_pad(5.0f);
-        }
-    }
-    end_layout();
-}
-
 Array<Entity*> sort_visible_entities(Array<Entity*> visible_entities) {
     visible_entities.allocator = &temp_allocator;
 
@@ -376,29 +323,39 @@ void update_world_projection() {
 }
 
 i32 main() {
-    seed_random();
     init_platform();
+    seed_random();
 
-    heap_allocator    = make_allocator(heap_alloc, heap_dealloc);
-    temp_allocator    = make_allocator(temp_alloc, temp_dealloc);
+    heap_allocator = make_allocator(heap_alloc, heap_dealloc);
+    temp_allocator = make_allocator(temp_alloc, temp_dealloc);
+
     default_allocator = heap_allocator;
-    
+
+    FILE* settings_file = fopen(SETTINGS_FILE_NAME, "rb");
+    if (settings_file) {
+        utf8 fullscreen[4];
+        fscanf(settings_file, "fullscreen=%s", fullscreen);
+        if (compare(fullscreen, "yes")) {
+            toggle_fullscreen();
+        }
+
+        printf("Read settings from '%s'\n", SETTINGS_FILE_NAME);
+        fclose(settings_file);
+    }
+    else {
+        printf("Failed to read settings from '%s', the file does not exist\n", SETTINGS_FILE_NAME);
+    }
+
+    show_window();
+    update_world_projection();
+
     init_draw();
     init_sound();
-    
-    load_settings();
-    show_window();
-    
-    load_assets();
-
-    playing_music = play_sound(&sound_music, music_volume, true);
-    update_world_projection();
 
     switch_game_mode(GAME_MODE_MENU);
 
     while (!platform.should_quit) {
         update_platform();
-        update_sound();
 
         glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -408,16 +365,33 @@ i32 main() {
         update_world_projection();
         gui_begin();
 
-        music_volume = lerp(music_volume, 0.05f * timers.delta, 0.5f);
-        set_volume(playing_music, music_volume);
+        update_sound();
 
         if (simulate_entities) {
-            for_each (Player* player, &players)       on_update(player);
-            for_each (Laser* laser, &lasers)          on_update(laser);
-            for_each (Asteroid* asteroid, &asteroids) on_update(asteroid);
-            for_each (Enemy* enemy, &enemies)         on_update(enemy);
-
             for_each (Entity* entity, &entities) {
+                switch (entity->type) {
+                    case ENTITY_TYPE_NONE: {
+                        break;
+                    }
+                    case ENTITY_TYPE_PLAYER: {
+                        on_update(entity->player);
+                        break;
+                    }
+                    case ENTITY_TYPE_LASER: {
+                        on_update(entity->laser);
+                        break;
+                    }
+                    case ENTITY_TYPE_ASTEROID: {
+                        on_update(entity->asteroid);
+                        break;
+                    }
+                    case ENTITY_TYPE_ENEMY: {
+                        on_update(entity->enemy);
+                        break;
+                    }
+                    invalid_default_case();
+                }
+
                 if (entity->position.x < world_left)   entity->position.x = world_right;
                 if (entity->position.x > world_right)  entity->position.x = world_left;
                 if (entity->position.y < world_bottom) entity->position.y = world_top;
@@ -436,56 +410,12 @@ i32 main() {
                     Vector2 us_position   = get_world_position(us);
                     Vector2 them_position = get_world_position(them);
 
-                    bool did_collide = false;
+                    Circle circle_us   = make_circle(get_world_position(us),   us->collider_radius);
+                    Circle circle_them = make_circle(get_world_position(them), them->collider_radius);
 
-                    Circle circle_us   = make_circle(us_position,   us->collider_radius);
-                    Circle circle_them = make_circle(them_position, them->collider_radius);
+                    // @todo: Mirror the collision volumes as well, similar to the draw
 
                     if (intersects(circle_us, circle_them)) {
-                        did_collide = true;
-                    }
-                    
-                    // if (position.x - world_left <= bounds) {
-                    //     f32 mirrored_x = world_right + (position.x - world_left);
-
-                    //     Matrix4 new_transform = transform;
-                    //     new_transform._41 = mirrored_x;
-
-                    //     set_transform(new_transform);
-                    //     draw_sprite(entity->sprite, entity->sprite_size);
-                    // }
-
-                    // if (world_right - position.x <= bounds) {
-                    //     f32 mirrored_x = world_left - (world_right - position.x);
-
-                    //     Matrix4 new_transform = transform;
-                    //     new_transform._41 = mirrored_x;
-
-                    //     set_transform(new_transform);
-                    //     draw_sprite(entity->sprite, entity->sprite_size);
-                    // }
-
-                    // if (position.y - world_bottom <= bounds) {
-                    //     f32 mirrored_y = world_top + (position.y - world_bottom);
-
-                    //     Matrix4 new_transform = transform;
-                    //     new_transform._42 = mirrored_y;
-
-                    //     set_transform(new_transform);
-                    //     draw_sprite(entity->sprite, entity->sprite_size);
-                    // }
-
-                    // if (world_top - position.y <= bounds) {
-                    //     f32 mirrored_y = world_bottom - (world_top - position.y);
-
-                    //     Matrix4 new_transform = transform;
-                    //     new_transform._42 = mirrored_y;
-
-                    //     set_transform(new_transform);
-                    //     draw_sprite(entity->sprite, entity->sprite_size);
-                    // }
-
-                    if (did_collide) {
                         switch (us->type) {
                             case ENTITY_TYPE_NONE: {
                                 break;
@@ -611,20 +541,6 @@ i32 main() {
 
                 set_transform(new_transform);
                 draw_sprite(entity->sprite, entity->sprite_size);
-
-                #if DEBUG
-                    if (entity->has_collider) {
-                        new_transform = entity->transform;
-                        new_transform._41 = mirrored_x;
-
-                        set_transform(new_transform);
-                        
-                        draw_circle(
-                            make_circle(make_vector2(0.0f, 0.0f), entity->collider_radius), 
-                            make_color(0.0f, 1.0f, 0.0f), 
-                            false);
-                    }
-                #endif
             }
 
             if (world_right - position.x <= bounds) {
@@ -635,20 +551,6 @@ i32 main() {
 
                 set_transform(new_transform);
                 draw_sprite(entity->sprite, entity->sprite_size);
-
-                #if DEBUG
-                    if (entity->has_collider) {
-                        new_transform = entity->transform;
-                        new_transform._41 = mirrored_x;
-
-                        set_transform(new_transform);
-                        
-                        draw_circle(
-                            make_circle(make_vector2(0.0f, 0.0f), entity->collider_radius), 
-                            make_color(0.0f, 1.0f, 0.0f), 
-                            false);
-                    }
-                #endif
             }
 
             if (position.y - world_bottom <= bounds) {
@@ -659,20 +561,6 @@ i32 main() {
 
                 set_transform(new_transform);
                 draw_sprite(entity->sprite, entity->sprite_size);
-
-                #if DEBUG
-                    if (entity->has_collider) {
-                        new_transform = entity->transform;
-                        new_transform._42 = mirrored_y;
-
-                        set_transform(new_transform);
-                        
-                        draw_circle(
-                            make_circle(make_vector2(0.0f, 0.0f), entity->collider_radius), 
-                            make_color(0.0f, 1.0f, 0.0f), 
-                            false);
-                    }
-                #endif
             }
 
             if (world_top - position.y <= bounds) {
@@ -683,20 +571,6 @@ i32 main() {
 
                 set_transform(new_transform);
                 draw_sprite(entity->sprite, entity->sprite_size);
-
-                #if DEBUG
-                    if (entity->has_collider) {
-                        new_transform = entity->transform;
-                        new_transform._42 = mirrored_y;
-
-                        set_transform(new_transform);
-
-                        draw_circle(
-                            make_circle(make_vector2(0.0f, 0.0f), entity->collider_radius), 
-                            make_color(0.0f, 1.0f, 0.0f), 
-                            false);
-                    }
-                #endif
             }
 
             set_transform(transform);
@@ -705,11 +579,7 @@ i32 main() {
             #if DEBUG
                 if (entity->has_collider) {
                     set_transform(entity->transform);
-                    
-                    draw_circle(
-                        make_circle(make_vector2(0.0f, 0.0f), entity->collider_radius), 
-                        make_color(0.0f, 1.0f, 0.0f), 
-                        false);
+                    draw_circle(make_circle(entity->position, entity->collider_radius), make_color(0.0f, 1.0f, 0.0f), false);
                 }
             #endif
         }
@@ -728,84 +598,8 @@ i32 main() {
 
         #if DEBUG
             begin_layout(GUI_ADVANCE_VERTICAL, get_font_line_gap(&font_arial, 18.0f), GUI_ANCHOR_TOP_LEFT, 10.0f, 10.0f); {
-                gui_text(&font_arial, "Timers:", 18.0f);
-
-                begin_layout(GUI_ADVANCE_VERTICAL, get_font_line_gap(&font_arial, 18.0f), GUI_ANCHOR_NONE, 16.0f); {
-                    gui_text(&font_arial, format_string("Now: %.2f", timers.now), 18.0f);
-                    gui_text(&font_arial, format_string("Frame: %fms", timers.delta * 1000.0f), 18.0f);
-                    gui_text(&font_arial, format_string("Fps: %u", (u32) (1.0f / timers.delta)), 18.0f);
-                }
-                end_layout();
-
-                gui_text(&font_arial, "Storage:", 18.0f);
-
-                begin_layout(GUI_ADVANCE_VERTICAL, GUI_ANCHOR_NONE, 16.0f); {
-                    gui_text(&font_arial, format_string("Total: %.2f mb", platform.heap_memory_allocated / 1024.0f), 18.0f);
-                    gui_pad(get_font_line_gap(&font_arial, 18.0f));
-
-                    gui_text(
-                        &font_arial, 
-                        format_string("Temp: %.2f kb / %.2f kb (max: %.2f kb)", 
-                            platform.temp_memory_allocated / 1024.0f, 
-                            TEMP_MEMORY_SIZE / 1024.0f, 
-                            platform.temp_memory_high_water_mark / 1024.0f),
-                        18.0f);
-
-                    gui_pad(5.0f);
-
-                    begin_layout(GUI_ADVANCE_HORIZONTAL); {
-                        f32 full = (f32) platform.temp_memory_allocated / (f32) TEMP_MEMORY_SIZE;
-                        f32 high = (f32) platform.temp_memory_high_water_mark / (f32) TEMP_MEMORY_SIZE;
-
-                        f32 empty = 1.0f - high;
-
-                        gui_rectangle(256.0f * full,          16.0f, make_color(0.0f, 0.0f, 0.0f), make_color(1.0f, 1.0f, 0.0f));
-                        gui_rectangle(256.0f * (high - full), 16.0f, make_color(0.0f, 0.0f, 0.0f), make_color(0.0f, 1.0f, 1.0f));
-                        gui_rectangle(256.0f * empty,         16.0f, make_color(0.0f, 0.0f, 0.0f));
-                    }
-                    end_layout();
-                    
-                    gui_pad(5.0f);
-
-                    gui_text(
-                        &font_arial, 
-                        format_string("Entities: %u / %u", entities.count, entities.buckets.count * ENTITIES_BUCKET_SIZE), 
-                        18.0f);
-
-                    draw_bucket_storage(&entities);
-
-                    gui_text(
-                        &font_arial, 
-                        format_string("Players: %u / %u", players.count, players.buckets.count * PLAYERS_BUCKET_SIZE), 
-                        18.0f);
-                        
-                    draw_bucket_storage(&players);
-
-                    gui_text(
-                        &font_arial, 
-                        format_string("Lasers: %u / %u", lasers.count, lasers.buckets.count * LASERS_BUCKET_SIZE), 
-                        18.0f);
-                        
-                    draw_bucket_storage(&lasers);
-
-                    gui_text(
-                        &font_arial, 
-                        format_string("Asteroids: %u / %u", asteroids.count, asteroids.buckets.count * ASTEROIDS_BUCKET_SIZE), 
-                        18.0f);
-                        
-                    draw_bucket_storage(&asteroids);
-                    
-                    gui_text(
-                        &font_arial, 
-                        format_string("Enemies: %u / %u", enemies.count, enemies.buckets.count * ENEMIES_BUCKET_SIZE), 
-                        18.0f);
-                        
-                    draw_bucket_storage(&enemies);
-                }
-                end_layout();
-
-                gui_text(&font_arial, "Hierarchy:", 18.0f);
-                draw_entity_hierarchy(&root_entity);
+                gui_text(&font_arial, format_string("%.2f, %.2f, %u", timers.now, timers.delta * 1000.0f, (u32) (1.0f / timers.delta)), 18.0f);
+                gui_text(&font_arial, format_string("%u, %u", platform.heap_memory_allocated, platform.temp_memory_allocated), 18.0f);
             }
             end_layout();
         #endif

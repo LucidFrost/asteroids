@@ -5,19 +5,22 @@ struct Player {
 
     Entity* left_thrust  = null;
     Entity* right_thrust = null;
-    Entity* shield       = null;
 
     Vector2 velocity;
     Vector2 desired_direction;
 
-    bool has_shield   = false;
-    f32  shield_timer = 0.0f;
-
     i32 last_mouse_x = 0;
     i32 last_mouse_y = 0;
 
-    u32 score = 0;
-    u32 score_since_last_life = 0;
+    Ship_Type  ship_type;
+    Ship_Color ship_color;
+
+    Damage_Type damage_type;
+    Entity* damage  = null;
+    bool is_damaged = false;
+
+    f32 invincibility_timer = 0.0f;
+    bool is_invincible = false;
 };
 
 void on_create(Player* player);
@@ -25,54 +28,76 @@ void on_destroy(Player* player);
 void on_update(Player* player);
 void on_collision(Player* player, Entity* them);
 
+void add_score(u32 score);
+void damage_player(Player* player);
+
 #else
 
-void add_score(u32 score);
 void kill_player();
 
-void destroy_shield(Player* player) {
-    player->has_shield         = false;
-    player->shield->is_visible = false;
+void init_player(Player* player, Ship_Type ship_type, Ship_Color ship_color) {
+    set_sprite(player->entity, get_ship_sprite(ship_type, ship_color));
+
+    player->ship_type  = ship_type;
+    player->ship_color = ship_color;
+}
+
+void damage_player(Player* player) {
+    if (player->is_invincible) return;
+
+    if (player->is_damaged) {
+        switch (player->damage_type) {
+            case DAMAGE_TYPE_SMALL: {
+                player->damage_type = DAMAGE_TYPE_MEDIUM;
+                break;
+            }
+            case DAMAGE_TYPE_MEDIUM: {
+                player->damage_type = DAMAGE_TYPE_LARGE;
+                break;
+            }
+            case DAMAGE_TYPE_LARGE: {
+                kill_player();
+                break;
+            }
+            invalid_default_case();
+        }
+    }
+    else {
+        player->damage_type = DAMAGE_TYPE_SMALL;
+        player->is_damaged  = true;
+    }
+
+    set_sprite(player->damage, get_damage_sprite(player->ship_type, player->damage_type));
+    
+    player->invincibility_timer = 1.5f;
+    player->is_invincible       = true;
 }
 
 void on_create(Player* player) {
-    player->entity->is_visible      = true;
-    player->entity->has_collider    = true;
-    player->entity->collider_radius = 0.5f;
+    set_collider(player->entity, 0.5f);
 
-    player->left_thrust = create_entity(ENTITY_TYPE_NONE, player->entity);
-    
-    player->left_thrust->position     = make_vector2(-0.3f, -0.5f);
-    player->left_thrust->sprite       = &sprite_thrust;
-    player->left_thrust->sprite_size  = 0.5f;
-    player->left_thrust->sprite_order = -1;
-
+    player->left_thrust  = create_entity(ENTITY_TYPE_NONE, player->entity);
     player->right_thrust = create_entity(ENTITY_TYPE_NONE, player->entity);
+    
+    player->left_thrust->position = make_vector2(-0.3f, -0.5f);
+    set_sprite(player->left_thrust, &sprite_thrust, 0.5f, -1);
 
-    player->right_thrust->position     = make_vector2(0.3f, -0.5f);
-    player->right_thrust->sprite       = &sprite_thrust;
-    player->right_thrust->sprite_size  = 0.5f;
-    player->right_thrust->sprite_order = -1;
+    player->right_thrust->position = make_vector2(0.3f, -0.5f);
+    set_sprite(player->right_thrust, &sprite_thrust, 0.5f, -1);
 
-    player->shield = create_entity(ENTITY_TYPE_NONE, player->entity);
+    player->left_thrust->is_visible  = false;
+    player->right_thrust->is_visible = false;
 
-    player->shield->sprite       = &sprite_shield;
-    player->shield->sprite_size  = 1.75f;
-    player->shield->sprite_order = 1;
-
-    player->has_shield          = true;
-    player->shield_timer        = 2.5f;
-    player->shield->is_visible  = true;
-
-    play_sound(&spawn_sound);
+    player->damage = create_entity(ENTITY_TYPE_NONE, player->entity);
+    play_sound(&sound_spawn);
 }
 
 void on_destroy(Player* player) {
     destroy_entity(player->left_thrust);
     destroy_entity(player->right_thrust);
+    destroy_entity(player->damage);
 
-    destroy_entity(player->shield);
-    play_sound(&kill_01_sound);
+    play_sound(get_kill_sound());
 }
 
 void on_update(Player* player) {
@@ -107,8 +132,7 @@ void on_update(Player* player) {
     }
 
     if (input.mouse_x != player->last_mouse_x || input.mouse_y != player->last_mouse_y) {
-        Vector2 world_position = unproject(input.mouse_x, input.mouse_y, platform.window_width, platform.window_height, world_projection);
-        player->desired_direction = normalize(world_position - player->entity->position);
+        player->desired_direction = normalize(get_world_position(input.mouse_x, input.mouse_y) - player->entity->position);
         
         player->last_mouse_x = input.mouse_x;
         player->last_mouse_y = input.mouse_y;
@@ -121,27 +145,25 @@ void on_update(Player* player) {
 
     if (input.mouse_left.down || input.gamepad_right_trigger.down) {
         Laser* laser = create_entity(ENTITY_TYPE_LASER)->laser;
+        init_laser(laser, LASER_COLOR_BLUE, player->entity, player->entity->orientation);
 
-        laser->shooter_id          = player->entity->id;
-        laser->entity->sprite      = get_laser_sprite(LASER_COLOR_BLUE);
-        laser->entity->position    = player->entity->position + (get_direction(player->entity->orientation) * 0.75f);
-        laser->entity->orientation = player->entity->orientation;
+        play_sound(get_laser_sound());
     }
 
-    if (player->has_shield) {
-        if ((player->shield_timer -= timers.delta) <= 0.0f) {
-            destroy_shield(player);
-        }
+    if (player->is_invincible && (player->invincibility_timer -= timers.delta) <= 0.0f) {
+        player->is_invincible = false;
     }
 }
 
 void on_collision(Player* player, Entity* them) {
     switch (them->type) {
         case ENTITY_TYPE_ASTEROID: {
-            kill_player();
+            if (!player->is_invincible) {
+                damage_player(player);
 
-            spawn_children(them->asteroid);
-            destroy_entity(them);
+                spawn_children(them->asteroid);
+                destroy_entity(them);
+            }
 
             break;
         }

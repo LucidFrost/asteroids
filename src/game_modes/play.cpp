@@ -34,7 +34,7 @@ void start_level(u32 level) {
         switch (side) {
             case 0: {
                 asteroid->entity->position = make_vector2(
-                    get_random_between(world_left, world_left + 2.5f), 
+                    get_random_between(world_left, world_left + (world_width / 4.0f)), 
                     get_random_between(world_bottom, world_top));
 
                 break;
@@ -42,13 +42,13 @@ void start_level(u32 level) {
             case 1: {
                 asteroid->entity->position = make_vector2(
                     get_random_between(world_left, world_right), 
-                    get_random_between(world_top, world_top - 2.5f));
+                    get_random_between(world_top, world_top - (world_width / 4.0f)));
 
                 break;
             }
             case 2: {
                 asteroid->entity->position = make_vector2(
-                    get_random_between(world_right, world_right - 2.5f), 
+                    get_random_between(world_right, world_right - (world_width / 4.0f)), 
                     get_random_between(world_bottom, world_top));
 
                 break;
@@ -56,7 +56,7 @@ void start_level(u32 level) {
             case 3: {
                 asteroid->entity->position = make_vector2(
                     get_random_between(world_left, world_right), 
-                    get_random_between(world_bottom, world_bottom + 2.5f));
+                    get_random_between(world_bottom, world_bottom + (world_width / 4.0f)));
 
                 break;
             }
@@ -79,16 +79,11 @@ void add_score(u32 score) {
 
 void spawn_player() {
     the_player = create_entity(ENTITY_TYPE_PLAYER)->player;
-    the_player->entity->sprite = get_ship_sprite(ship_color, ship_type);
+    init_player(the_player, ship_type, ship_color);
 }
 
 void kill_player() {
     if (!the_player) return;
-
-    if (the_player->has_shield) {
-        destroy_shield(the_player);
-        return;
-    }
 
     player_lives -= 1;
     
@@ -125,11 +120,12 @@ void start_play() {
 
     player_lives = 3;
     player_score = 0;
+    player_score_since_last_life = 0;
 
     enemy_respawn_timer = get_random_between(5.0f, 15.0f);
 
-    spawn_player();
     start_level(1);
+    spawn_player();
 }
 
 void stop_play() {

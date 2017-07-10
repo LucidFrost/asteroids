@@ -459,7 +459,7 @@ Matrix4 make_inverse_matrix(Matrix4 matrix) {
     return inverse;
 }
 
-Vector2 unproject(u32 window_x, u32 window_y, u32 window_width, u32 window_height, Matrix4 projection) {
+Vector2 unproject(i32 window_x, i32 window_y, u32 window_width, u32 window_height, Matrix4 projection) {
     f32 normalized_x = ((2.0f * window_x) / window_width) - 1.0f;
     f32 normalized_y = 1.0f - ((2.0f * window_y) / window_height);
 

@@ -7,6 +7,7 @@ enum Gui_Entry_Type {
     GUI_ENTRY_TYPE_BUTTON,
     GUI_ENTRY_TYPE_FILL,
     GUI_ENTRY_TYPE_IMAGE,
+    GUI_ENTRY_TYPE_RECTANGLE,
     GUI_ENTRY_TYPE_LAYOUT,
 };
 
@@ -44,6 +45,21 @@ struct Gui_Entry {
             f32 a;
         }
         fill;
+
+        struct {
+            f32 border_r;
+            f32 border_g;
+            f32 border_b;
+            f32 border_a;
+
+            f32 fill_r;
+            f32 fill_g;
+            f32 fill_b;
+            f32 fill_a;
+
+            bool fill;
+        }
+        rectangle;
 
         struct {
             Sprite* sprite;
@@ -294,6 +310,25 @@ void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
 
                 break;
             }
+            case GUI_ENTRY_TYPE_RECTANGLE: {
+                set_transform(make_transform_matrix(cursor));
+
+                Rectangle2 rectangle = make_rectangle2(make_vector2(0.0f, 0.0f), entry->width, entry->height);
+
+                if (entry->rectangle.fill) {
+                    draw_rectangle(
+                        rectangle, 
+                        make_color(entry->rectangle.fill_r, entry->rectangle.fill_g, entry->rectangle.fill_b, entry->rectangle.fill_a), 
+                        true);
+                }
+
+                draw_rectangle(
+                    rectangle, 
+                    make_color(entry->rectangle.border_r, entry->rectangle.border_g, entry->rectangle.border_b, entry->rectangle.border_a), 
+                    false);
+
+                break;
+            }
             case GUI_ENTRY_TYPE_LAYOUT: {
                 Gui_Layout* child_layout = entry->layout;
                 Vector2     child_cursor = cursor;
@@ -485,4 +520,30 @@ void gui_image(Sprite* sprite, f32 size) {
     entry.image.size   = size;
 
     add(&get_current_layout()->entries, entry);
+}
+
+void gui_rectangle(f32 width, f32 height, Color border_color, Color fill_color, bool fill = true) {
+    Gui_Entry entry;
+    entry.type = GUI_ENTRY_TYPE_RECTANGLE;
+
+    entry.width  = width;
+    entry.height = height;
+
+    entry.rectangle.border_r    = border_color.r;
+    entry.rectangle.border_g    = border_color.g;
+    entry.rectangle.border_b    = border_color.b;
+    entry.rectangle.border_a    = border_color.a;
+
+    entry.rectangle.fill_r    = fill_color.r;
+    entry.rectangle.fill_g    = fill_color.g;
+    entry.rectangle.fill_b    = fill_color.b;
+    entry.rectangle.fill_a    = fill_color.a;
+
+    entry.rectangle.fill = fill;
+
+    add(&get_current_layout()->entries, entry);
+}
+
+void gui_rectangle(f32 width, f32 height, Color border_color) {
+    gui_rectangle(width, height, border_color, make_color(0.0f, 0.0f, 0.0f), false);
 }
