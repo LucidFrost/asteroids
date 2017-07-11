@@ -62,6 +62,7 @@ void spawn_children(Asteroid* asteroid) {
     for (u32 i = 0; i < 2; i++) {
         switch (asteroid->size) {
             case ASTEROID_SIZE_SMALL: {
+                spawn_particles(asteroid->entity->position, asteroid->velocity, 0.25f);
                 break;
             }
             case ASTEROID_SIZE_MEDIUM: {
@@ -70,6 +71,8 @@ void spawn_children(Asteroid* asteroid) {
                 child_asteroid->entity->position = asteroid->entity->position;
                 set_asteroid_size(child_asteroid, ASTEROID_SIZE_SMALL);
 
+                spawn_particles(asteroid->entity->position, asteroid->velocity, 0.5f);
+
                 break;
             }
             case ASTEROID_SIZE_LARGE: {
@@ -77,6 +80,8 @@ void spawn_children(Asteroid* asteroid) {
 
                 child_asteroid->entity->position = asteroid->entity->position;
                 set_asteroid_size(child_asteroid, ASTEROID_SIZE_MEDIUM);
+
+                spawn_particles(asteroid->entity->position, asteroid->velocity, 0.75f);
 
                 break;
             }

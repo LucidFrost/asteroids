@@ -306,7 +306,7 @@ void draw_layout_entries(Gui_Layout* layout, Vector2 cursor) {
             }
             case GUI_ENTRY_TYPE_IMAGE: {
                 set_transform(make_transform_matrix(cursor));
-                draw_sprite(entry->image.sprite, entry->image.size, false);
+                draw_sprite(entry->image.sprite, entry->image.size, 1.0f, false);
 
                 break;
             }

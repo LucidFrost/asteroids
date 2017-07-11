@@ -142,7 +142,7 @@ void update_menu() {
                 gui_pad(10.0f);
 
                 if (gui_button("Play", MENU_OPTION_SIZE)) {
-                    switch_game_mode(GAME_MODE_PLAY);
+                    switch_game_mode(GAME_MODE_SURVIVAL);
                 }
 
                 gui_pad(get_font_line_gap(gui_context.default_font, MENU_OPTION_SIZE));

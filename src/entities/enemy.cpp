@@ -36,7 +36,7 @@ void set_enemy_mode(Enemy* enemy, Enemy_Mode enemy_mode) {
             set_collider(enemy->entity, 0.75f);
             
             enemy->score     = 200;
-            enemy->fire_rate = 1.5f;
+            enemy->fire_rate = 0.75f;
 
             break;
         }
@@ -45,7 +45,7 @@ void set_enemy_mode(Enemy* enemy, Enemy_Mode enemy_mode) {
             set_collider(enemy->entity, 0.375f);
 
             enemy->score     = 1000;
-            enemy->fire_rate = 0.5f;
+            enemy->fire_rate = 0.25f;
 
             break;
         }
@@ -90,7 +90,10 @@ void on_update(Enemy* enemy) {
                     break;
                 }
                 case ENEMY_MODE_HARD: {
-                    fire_angle = get_angle(normalize(player->entity->position - enemy->entity->position)) + get_random_between(-25.0f, 25.0f);
+                    fire_angle = get_angle(
+                        normalize(player->entity->position - enemy->entity->position)) + 
+                        get_random_between(-15.0f, 15.0f);
+
                     break;
                 }
                 invalid_default_case();

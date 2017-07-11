@@ -67,7 +67,7 @@ void damage_player(Player* player) {
         player->is_damaged  = true;
     }
 
-    set_sprite(player->damage, get_damage_sprite(player->ship_type, player->damage_type));
+    set_sprite(player->damage, get_damage_sprite(player->ship_type, player->damage_type), player->entity->sprite_size, 1);
     
     player->invincibility_timer = 1.5f;
     player->is_invincible       = true;
@@ -93,10 +93,6 @@ void on_create(Player* player) {
 }
 
 void on_destroy(Player* player) {
-    destroy_entity(player->left_thrust);
-    destroy_entity(player->right_thrust);
-    destroy_entity(player->damage);
-
     play_sound(get_kill_sound());
 }
 

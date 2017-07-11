@@ -114,7 +114,7 @@ void kill_enemy() {
     enemy_respawn_timer = get_random_between(5.0f, 15.0f);
 }
 
-void start_play() {
+void start_survival() {
     is_waiting_for_next_level = false;
     is_paused = false;
 
@@ -128,22 +128,22 @@ void start_play() {
     spawn_player();
 }
 
-void stop_play() {
+void stop_survival() {
     
 }
 
-void update_play() {
+void update_survival() {
     // @todo: Pause button on the GUI
     // @todo: Notify when they unlock something or get another life
 
     if (player_lives) {
         if (input.key_escape.down) {
             if (is_paused) {
-                simulate_entities = true;
+                should_simulate = true;
                 is_paused = false;
             }
             else {
-                simulate_entities = false;
+                should_simulate = false;
                 is_paused = true;
             }
         }
@@ -168,7 +168,7 @@ void update_play() {
                 gui_pad(10.0f);
 
                 if (gui_button("Resume", 32.0f)) {
-                    simulate_entities = true;
+                    should_simulate = true;
                     is_paused = false;
                 }
 
@@ -179,7 +179,7 @@ void update_play() {
                         destroy_entity(the_player->entity);
                     }
 
-                    simulate_entities = true;
+                    should_simulate = true;
                     switch_game_mode(GAME_MODE_MENU);
                 }
             }
@@ -189,7 +189,7 @@ void update_play() {
             if (is_waiting_for_next_level) {
                 if ((next_level_timer -= timers.delta) <= 0.0f) {
                     is_waiting_for_next_level = false;
-                    start_level(current_level + 1);
+                    start_level(player_score > 40000 ? current_level : current_level + 1);
                 }
             }
             else {

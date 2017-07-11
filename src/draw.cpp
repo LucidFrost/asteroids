@@ -316,16 +316,20 @@ f32 get_sprite_width(Sprite* sprite, f32 height) {
     return height * sprite->aspect;
 }
 
-void draw_sprite(Sprite* sprite, f32 height, bool center = true) {
-    if (!sprite->is_valid) {
-        draw_rectangle(make_rectangle2(make_vector2(0.0f, 0.0f), height, height, center), make_color(1.0f, 1.0f, 1.0f), true);
+void draw_sprite(Sprite* sprite, f32 height, f32 opacity = 1.0f, bool center = true) {
+    if (!sprite || !sprite->is_valid) {
+        draw_rectangle(
+            make_rectangle2(make_vector2(0.0f, 0.0f), height, height, center), 
+            make_color(1.0f, 1.0f, 1.0f, opacity), 
+            true);
+            
         return;
     }
 
     glBindTexture(GL_TEXTURE_2D, sprite->texture);
     glBegin(GL_QUADS);
 
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glColor4f(1.0f, 1.0f, 1.0f, opacity);
 
     f32 x = 0.0f;
     f32 y = 0.0f;

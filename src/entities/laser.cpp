@@ -57,8 +57,8 @@ void on_collision(Laser* laser, Entity* them) {
         }
         case ENTITY_TYPE_PLAYER: {
             if (shooter && shooter->type == ENTITY_TYPE_ENEMY) {
+                damage_player(them->player);
                 destroy_entity(laser->entity);
-                damage_player(shooter->player);
             }
 
             break;

@@ -83,6 +83,7 @@ Sprite sprite_ship[SHIP_COLOR_COUNT][SHIP_TYPE_COUNT];
 Sprite sprite_damage[DAMAGE_TYPE_COUNT][SHIP_TYPE_COUNT];
 Sprite sprite_enemy[ENEMY_COLOR_COUNT];
 Sprite sprite_laser[LASER_COLOR_COUNT];
+Sprite sprite_smoke[9];
 
 Sprite* get_asteroid_sprite(Asteroid_Size size) {
     return &sprite_asteroid[size][get_random_out_of(ASTEROID_TYPE_COUNT)];
@@ -170,6 +171,10 @@ void load_assets() {
     sprite_enemy[ENEMY_COLOR_ORANGE]                       = load_sprite("sprites/enemy_orange.png");
     sprite_laser[LASER_COLOR_RED]                          = load_sprite("sprites/laser_red.png");
     sprite_laser[LASER_COLOR_BLUE]                         = load_sprite("sprites/laser_blue.png");
+
+    for (u32 i = 0; i < count_of(sprite_smoke); i++) {
+        sprite_smoke[i] = load_sprite(format_string("sprites/smoke_%02u.png", i + 1));
+    }
 
     sound_music = load_sound("sounds/music.ogg");
     sound_spawn = load_sound("sounds/spawn.ogg");
