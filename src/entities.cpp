@@ -1,9 +1,26 @@
+//
+// To add a new entity type, you must do the following:
+//   - Add the entity type to the Entity_Type enum
+//   - Add the case to the to_string for Entity_Type
+//   - Add a pointer to the union on the Entity struct
+//   - Include the entity file in the AS_HEADER block
+//   - Add a bucket and bucket size for the entity
+//   - Add the case in the creation code to call on_create
+//   - Include the entity file again but not as a header
+//   - Add the for_each to call on_update
+//   - Add the case in the collision code to call on_collision
+//   - Add the case in the destruction code to call on_destroy
+//
+
+// @todo: Use metaprogramming to automate this process
+
 enum Entity_Type {
     ENTITY_TYPE_NONE,
     ENTITY_TYPE_PLAYER,
     ENTITY_TYPE_LASER,
     ENTITY_TYPE_ASTEROID,
-    ENTITY_TYPE_ENEMY
+    ENTITY_TYPE_ENEMY,
+    ENTITY_TYPE_POWERUP
 };
 
 utf8* to_string(Entity_Type entity_type) {
@@ -13,22 +30,18 @@ utf8* to_string(Entity_Type entity_type) {
         case ENTITY_TYPE_LASER:    return "Laser";
         case ENTITY_TYPE_ASTEROID: return "Asteroid";
         case ENTITY_TYPE_ENEMY:    return "Enemy";
+        case ENTITY_TYPE_POWERUP:  return "Powerup";
     }
 
     return "Invalid";
 }
-
-struct Player;
-struct Laser;
-struct Asteroid;
-struct Enemy;
 
 struct Entity {
     u32 id = 0;
     Entity_Type type = ENTITY_TYPE_NONE;
 
     bool was_just_destroyed = false;
-    bool was_just_created      = true;
+    bool was_just_created   = true;
     
     Entity* parent  = null;
     Entity* child   = null;
@@ -50,11 +63,13 @@ struct Entity {
     bool has_collider    = false;
 
     union {
-        void*     derived = null;
-        Player*   player;
-        Laser*    laser;
-        Asteroid* asteroid;
-        Enemy*    enemy;
+        void* derived = null;
+
+        struct Player*   player;
+        struct Laser*    laser;
+        struct Asteroid* asteroid;
+        struct Enemy*    enemy;
+        struct Powerup*  powerup;
     };
 };
 
@@ -63,6 +78,7 @@ struct Entity {
     #include "entities/player.cpp"
     #include "entities/enemy.cpp"
     #include "entities/laser.cpp"
+    #include "entities/powerup.cpp"
 #undef AS_HEADER
 
 const u32 ENTITIES_BUCKET_SIZE  = 32;
@@ -70,12 +86,14 @@ const u32 PLAYERS_BUCKET_SIZE   = 1;
 const u32 LASERS_BUCKET_SIZE    = 16;
 const u32 ASTEROIDS_BUCKET_SIZE = 16;
 const u32 ENEMIES_BUCKET_SIZE   = 1;
+const u32 POWERUPS_BUCKET_SIZE  = 4;
 
 Bucket_Array<Entity,   ENTITIES_BUCKET_SIZE>  entities;
 Bucket_Array<Player,   PLAYERS_BUCKET_SIZE>   players;
 Bucket_Array<Laser,    LASERS_BUCKET_SIZE>    lasers;
 Bucket_Array<Asteroid, ASTEROIDS_BUCKET_SIZE> asteroids;
 Bucket_Array<Enemy,    ENEMIES_BUCKET_SIZE>   enemies;
+Bucket_Array<Powerup,  POWERUPS_BUCKET_SIZE>  powerups;
 
 Entity root_entity;
 u32 next_entity_id;
@@ -130,6 +148,13 @@ Entity* create_entity(Entity_Type type, Entity* parent = &root_entity) {
             entity->enemy->entity = entity;
 
             on_create(entity->enemy);
+            break;
+        }
+        case ENTITY_TYPE_POWERUP: {
+            entity->powerup = next(&powerups);
+            entity->powerup->entity = entity;
+
+            on_create(entity->powerup);
             break;
         }
         invalid_default_case();
@@ -190,6 +215,7 @@ void set_collider(Entity* entity, f32 radius) {
 #include "entities/laser.cpp"
 #include "entities/player.cpp"
 #include "entities/enemy.cpp"
+#include "entities/powerup.cpp"
 
 void build_entity_hierarchy(Entity* entity) {
     Matrix4 local_transform = make_transform_matrix(entity->position, entity->orientation, entity->scale);
@@ -264,6 +290,7 @@ void update_entities() {
     for_each (Laser* laser, &lasers)          on_update(laser);
     for_each (Asteroid* asteroid, &asteroids) on_update(asteroid);
     for_each (Enemy* enemy, &enemies)         on_update(enemy);
+    for_each (Powerup* powerup, &powerups)    on_update(powerup);
 
     for_each (Entity* entity, &entities) {
         if (entity->position.x < world_left)   entity->position.x = world_right;
@@ -359,6 +386,10 @@ void update_entities() {
                         on_collision(us->enemy, them);
                         break;
                     }
+                    case ENTITY_TYPE_POWERUP: {
+                        on_collision(us->powerup, them);
+                        break;
+                    }
                     invalid_default_case();
                 }
             }
@@ -393,6 +424,12 @@ void update_entities() {
             case ENTITY_TYPE_ENEMY: {
                 on_destroy(entity->enemy);
                 remove(&enemies, entity->enemy);
+
+                break;
+            }
+            case ENTITY_TYPE_POWERUP: {
+                on_destroy(entity->powerup);
+                remove(&powerups, entity->powerup);
 
                 break;
             }
